@@ -1,13 +1,21 @@
 // routes/maintenance.routes.js
-const express = require('express');
+import express from 'express';
+import {
+  getAll,
+  getById,
+  create,
+  update,
+  remove
+} from '../controllers/maintenance.controller.js';
+
+import { auth } from '../middlewares/auth.middleware.js';
+
 const router = express.Router();
-const maintenanceController = require('../controllers/maintenance.controller');
-const auth = require('../middlewares/auth.middleware');  // si quieres proteger las rutas
 
-router.get('/', auth, maintenanceController.getAll);
-router.get('/:id', auth, maintenanceController.getById);
-router.post('/', auth, maintenanceController.create);
-router.put('/:id', auth, maintenanceController.update);
-router.delete('/:id', auth, maintenanceController.remove);
+router.get('/', auth, getAll);
+router.get('/:id', auth, getById);
+router.post('/', auth, create);
+router.put('/:id', auth, update);
+router.delete('/:id', auth, remove);
 
-module.exports = router;
+export { router };

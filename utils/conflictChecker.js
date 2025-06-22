@@ -8,8 +8,6 @@
  * @param {Date} end2 - fin del rango 2
  * @returns {boolean} true si hay conflicto
  */
-function hasConflict(start1, end1, start2, end2) {
+export function hasConflict(start1, end1, start2, end2) {
   return start1 < end2 && start2 < end1;
 }
-
-module.exports = { hasConflict };

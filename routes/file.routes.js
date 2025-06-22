@@ -1,17 +1,16 @@
 // routes/file.routes.js
-const express = require('express');
+import express from 'express';
+import { upload, download } from '../controllers/file.controller.js';
+import { auth } from '../middlewares/auth.middleware.js';
+import multer from 'multer';
+
 const router = express.Router();
-const fileController = require('../controllers/file.controller');
-const auth = require('../middlewares/auth.middleware');
-const multer = require('multer');
 
 // Configuración básica de multer para subir archivos
-const upload = multer({ dest: 'uploads/' });
+const uploadMiddleware = multer({ dest: 'uploads/' });
 
-// Ruta para subir un archivo ligado a una actividad (actividadId en params)
-router.post('/:actividadId', auth, upload.single('file'), fileController.upload);
+router.post('/:actividadId', auth, uploadMiddleware.single('file'), upload);
 
-// Ruta para descargar un archivo por nombre
-router.get('/download/:filename', auth, fileController.download);
+router.get('/download/:filename', auth, download);
 
-module.exports = router;
+export { router };

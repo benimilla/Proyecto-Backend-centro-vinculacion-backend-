@@ -1,8 +1,9 @@
 // middlewares/auth.middleware.js
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
+
 const { JWT_SECRET } = process.env;
 
-module.exports = function auth(req, res, next) {
+export function auth(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: 'No token provided' });
 
@@ -11,9 +12,9 @@ module.exports = function auth(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded; // Puedes agregar más datos del usuario si quieres
+    req.user = decoded;
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Token inválido o expirado' });
   }
-};
+}

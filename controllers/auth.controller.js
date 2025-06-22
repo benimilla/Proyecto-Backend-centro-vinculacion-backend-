@@ -1,24 +1,34 @@
 // controllers/auth.controller.js
-const prisma = require('../config/db');
-const { signToken } = require('../config/jwt');
-const bcrypt = require('bcrypt');
+import { prisma } from '../config/db.js';
+import { signToken } from '../config/jwt.js';
+import bcrypt from 'bcrypt';
 
-exports.register = async (req, res) => {
-  const { name, email, password } = req.body;
-  const hashed = await bcrypt.hash(password, 10);
-  const user = await prisma.user.create({ data: { name, email, password: hashed, role: 'USER' } });
-  const token = signToken({ userId: user.id, role: user.role });
-  res.status(201).json({ user, token });
-};
+export async function register(req, res) {
+  try {
+    const { name, email, password } = req.body;
+    const hashed = await bcrypt.hash(password, 10);
+    const user = await prisma.user.create({ 
+      data: { name, email, password: hashed, role: 'USER' } 
+    });
+    const token = signToken({ userId: user.id, role: user.role });
+    res.status(201).json({ user, token });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al registrar usuario', detalle: error.message });
+  }
+}
 
-exports.login = async (req, res) => {
-  const { email, password } = req.body;
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) return res.status(401).json({ error: 'Credenciales inválidas' });
+export async function login(req, res) {
+  try {
+    const { email, password } = req.body;
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return res.status(401).json({ error: 'Credenciales inválidas' });
 
-  const valid = await bcrypt.compare(password, user.password);
-  if (!valid) return res.status(401).json({ error: 'Credenciales inválidas' });
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) return res.status(401).json({ error: 'Credenciales inválidas' });
 
-  const token = signToken({ userId: user.id, role: user.role });
-  res.json({ user, token });
-};
+    const token = signToken({ userId: user.id, role: user.role });
+    res.json({ user, token });
+  } catch (error) {
+    res.status(500).json({ error: 'Error en login', detalle: error.message });
+  }
+}

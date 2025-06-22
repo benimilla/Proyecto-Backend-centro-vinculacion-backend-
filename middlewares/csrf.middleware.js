@@ -1,6 +1,4 @@
 // middlewares/csrf.middleware.js
-const csurf = require('csurf');
+import csurf from 'csurf';
 
-const csrfProtection = csurf({ cookie: true });
-
-module.exports = csrfProtection;
+export const csrfProtection = csurf({ cookie: true });

@@ -1,20 +1,20 @@
 // routes/user.routes.js
-const express = require('express');
+import express from 'express';
+import {
+  getAll,
+  getById,
+  update,
+  remove
+} from '../controllers/user.controller.js';
+
+import { auth } from '../middlewares/auth.middleware.js';
+import { permissions } from '../middlewares/permissions.middleware.js';
+
 const router = express.Router();
-const userController = require('../controllers/user.controller');
-const auth = require('../middlewares/auth.middleware');
-const permissions = require('../middlewares/permissions.middleware');
 
-// Obtener todos los usuarios (requiere autenticación y rol admin)
-router.get('/', auth, permissions('admin'), userController.getAll);
+router.get('/', auth, permissions('admin'), getAll);
+router.get('/:id', auth, getById);
+router.put('/:id', auth, update);
+router.delete('/:id', auth, permissions('admin'), remove);
 
-// Obtener usuario por id (requiere autenticación)
-router.get('/:id', auth, userController.getById);
-
-// Actualizar usuario por id (requiere autenticación)
-router.put('/:id', auth, userController.update);
-
-// Eliminar usuario por id (requiere autenticación y rol admin)
-router.delete('/:id', auth, permissions('admin'), userController.remove);
-
-module.exports = router;
+export { router };

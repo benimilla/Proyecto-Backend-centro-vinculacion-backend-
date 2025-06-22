@@ -1,5 +1,5 @@
 // middlewares/permissions.middleware.js
-module.exports = function permissions(role) {
+export function permissions(role) {
   return function (req, res, next) {
     if (!req.user) {
       return res.status(401).json({ error: 'No autorizado' });
@@ -9,4 +9,4 @@ module.exports = function permissions(role) {
     }
     next();
   };
-};
+}

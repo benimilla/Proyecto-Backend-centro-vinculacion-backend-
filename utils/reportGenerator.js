@@ -6,7 +6,7 @@
  * @param {string} format - 'json' o 'csv'
  * @returns {string} contenido del reporte
  */
-function generateReport(data, format = 'json') {
+export function generateReport(data, format = 'json') {
   if (format === 'json') {
     return JSON.stringify(data, null, 2);
   }
@@ -17,5 +17,3 @@ function generateReport(data, format = 'json') {
   }
   throw new Error('Formato de reporte no soportado');
 }
-
-module.exports = { generateReport };

@@ -1,7 +1,7 @@
 // controllers/maintenance.controller.js
-const prisma = require('../config/db');
+import { prisma } from '../config/db.js';
 
-exports.create = async (req, res) => {
+export async function create(req, res) {
   try {
     const data = req.body;
     const maintenance = await prisma.maintenance.create({ data });
@@ -9,18 +9,18 @@ exports.create = async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Error al crear el mantenimiento', details: error.message });
   }
-};
+}
 
-exports.getAll = async (req, res) => {
+export async function getAll(req, res) {
   try {
     const maintenances = await prisma.maintenance.findMany();
     res.json(maintenances);
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener mantenimientos', details: error.message });
   }
-};
+}
 
-exports.getById = async (req, res) => {
+export async function getById(req, res) {
   try {
     const { id } = req.params;
     const maintenance = await prisma.maintenance.findUnique({
@@ -31,9 +31,9 @@ exports.getById = async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener mantenimiento', details: error.message });
   }
-};
+}
 
-exports.update = async (req, res) => {
+export async function update(req, res) {
   try {
     const { id } = req.params;
     const data = req.body;
@@ -45,9 +45,9 @@ exports.update = async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Error al actualizar mantenimiento', details: error.message });
   }
-};
+}
 
-exports.remove = async (req, res) => {
+export async function remove(req, res) {
   try {
     const { id } = req.params;
     await prisma.maintenance.delete({ where: { id: Number(id) } });
@@ -55,4 +55,4 @@ exports.remove = async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Error al eliminar mantenimiento', details: error.message });
   }
-};
+}
