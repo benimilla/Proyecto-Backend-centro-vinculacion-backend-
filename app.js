@@ -7,7 +7,7 @@ import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 
 import * as logger from './utils/logger.js';
-import * as csrfMiddleware from './middlewares/csrf.middleware.js';
+import { csrfProtection } from './middlewares/csrf.middleware.js';
 import { auth } from './middlewares/auth.middleware.js';
 
 import { router as authRoutes } from './routes/auth.routes.js';
@@ -47,18 +47,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Middleware CSRF
-app.use(csrfMiddleware.csrfProtection || csrfMiddleware.default || csrfMiddleware);
+// Rutas públicas SIN CSRF (register y login)
+app.use('/api/auth/register', express.json(), authRoutes);  // register sin csrf
+app.use('/api/auth/login', express.json(), authRoutes);     // login sin csrf
 
-// Ruta para obtener token CSRF
-app.get('/api/csrf-token', (req, res) => {
-  res.json({ csrfToken: req.csrfToken() });
-});
+// Rutas públicas CON CSRF para otros endpoints de auth si tienes
+// app.use('/api/auth', csrfProtection, authRoutes); // si tienes más rutas en auth que sí requieran csrf
 
-// Rutas públicas
-app.use('/api/auth', authRoutes);
+// Middleware CSRF para rutas protegidas
+app.use(csrfProtection);
 
-// Middleware de autenticación para rutas protegidas
+// Middleware autenticación para rutas protegidas
 app.use(auth);
 
 // Rutas protegidas
