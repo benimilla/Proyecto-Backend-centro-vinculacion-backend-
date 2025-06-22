@@ -47,14 +47,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Rutas públicas SIN CSRF (register y login)
-app.use('/api/auth/register', express.json(), authRoutes);  // register sin csrf
-app.use('/api/auth/login', express.json(), authRoutes);     // login sin csrf
+// **Rutas de auth sin CSRF: solo /register y /login**
+app.post('/api/auth/register', authRoutes);
+app.post('/api/auth/login', authRoutes);
 
-// Rutas públicas CON CSRF para otros endpoints de auth si tienes
-// app.use('/api/auth', csrfProtection, authRoutes); // si tienes más rutas en auth que sí requieran csrf
-
-// Middleware CSRF para rutas protegidas
+// **Middleware CSRF para todas las demás rutas protegidas**
 app.use(csrfProtection);
 
 // Middleware autenticación para rutas protegidas
