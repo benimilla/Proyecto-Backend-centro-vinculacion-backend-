@@ -15,6 +15,29 @@ export async function getById(req, res) {
   res.json(user);
 }
 
+export async function create(req, res) {
+  try {
+    const { name, email, password, role = 'USER' } = req.body;
+
+    // Aquí podrías agregar validación, hashing de contraseña, etc.
+    // Por ejemplo, usar bcrypt para hashear la contraseña:
+    // import bcrypt from 'bcrypt';
+    // const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password, // Mejor guardar hashedPassword si haces hashing
+        role,
+      }
+    });
+    res.status(201).json(user);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al crear usuario', details: error.message });
+  }
+}
+
 export async function update(req, res) {
   const { id } = req.params;
   const data = req.body;
