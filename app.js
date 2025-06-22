@@ -50,6 +50,11 @@ app.use(cookieParser());
 // Middleware CSRF
 app.use(csrfMiddleware.csrfProtection || csrfMiddleware.default || csrfMiddleware);
 
+// Ruta para obtener token CSRF
+app.get('/api/csrf-token', (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+});
+
 // Rutas públicas
 app.use('/api/auth', authRoutes);
 
