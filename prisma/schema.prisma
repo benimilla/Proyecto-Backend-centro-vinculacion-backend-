@@ -1,15 +1,90 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-generator client {
-  provider = "prisma-client-js"
-  output   = "../generated/prisma"
+model Usuario {
+  id       Int      @id @default(autoincrement())
+  nombre   String
+  email    String   @unique
+  password String
+  rol      String
+  permisos Json
+  citas    Cita[]
 }
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+model Actividad {
+  id             Int       @id @default(autoincrement())
+  nombre         String
+  tipoId         Int
+  tipo           TipoActividad @relation(fields: [tipoId], references: [id])
+  periodicidadId Int
+  periodicidad   Periodicidad  @relation(fields: [periodicidadId], references: [id])
+  cupo           Int?
+  lugarId        Int?
+  lugar          Lugar?
+  oferentes      OferenteActividad[]
+  socioId        Int?
+  socio          SocioComunitario?
+  beneficiarios  Beneficiario[]
+  proyectoId     Int?
+  proyecto       Proyecto?
+  archivos       Archivo[]
+  citas          Cita[]
+}
+
+model Cita {
+  id          Int       @id @default(autoincrement())
+  actividadId Int
+  actividad   Actividad @relation(fields: [actividadId], references: [id])
+  lugarId     Int
+  lugar       Lugar     @relation(fields: [lugarId], references: [id])
+  fecha       DateTime
+  hora        DateTime
+}
+
+model TipoActividad {
+  id          Int       @id @default(autoincrement())
+  nombre      String
+  descripcion String
+  actividades Actividad[]
+}
+
+model Periodicidad {
+  id      Int     @id @default(autoincrement())
+  nombre  String
+  actividades Actividad[]
+}
+
+model Lugar {
+  id      Int     @id @default(autoincrement())
+  nombre  String
+  cupo    Int?
+  citas   Cita[]
+}
+
+model OferenteActividad {
+  id       Int     @id @default(autoincrement())
+  nombre   String
+  docente  String
+}
+
+model SocioComunitario {
+  id      Int      @id @default(autoincrement())
+  nombre  String
+}
+
+model Proyecto {
+  id      Int      @id @default(autoincrement())
+  nombre  String
+}
+
+model Archivo {
+  id          Int       @id @default(autoincrement())
+  url         String
+  descripcion String?
+  actividadId Int
+  actividad   Actividad @relation(fields: [actividadId], references: [id])
+}
+
+model Beneficiario {
+  id            Int       @id @default(autoincrement())
+  caracterizacion String
+  actividadId   Int
+  actividad     Actividad @relation(fields: [actividadId], references: [id])
 }
