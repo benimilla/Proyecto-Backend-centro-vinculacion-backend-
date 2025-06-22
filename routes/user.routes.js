@@ -5,12 +5,16 @@ const userController = require('../controllers/user.controller');
 const auth = require('../middlewares/auth.middleware');
 const permissions = require('../middlewares/permissions.middleware');
 
-router.get('/', auth, permissions('admin'), userController.getAllUsers);
+// Obtener todos los usuarios (requiere autenticación y rol admin)
+router.get('/', auth, permissions('admin'), userController.getAll);
 
-router.get('/:id', auth, userController.getUserById);
+// Obtener usuario por id (requiere autenticación)
+router.get('/:id', auth, userController.getById);
 
-router.put('/:id', auth, userController.updateUser);
+// Actualizar usuario por id (requiere autenticación)
+router.put('/:id', auth, userController.update);
 
-router.delete('/:id', auth, permissions('admin'), userController.deleteUser);
+// Eliminar usuario por id (requiere autenticación y rol admin)
+router.delete('/:id', auth, permissions('admin'), userController.remove);
 
 module.exports = router;

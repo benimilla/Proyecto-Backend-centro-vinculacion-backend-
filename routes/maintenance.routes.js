@@ -2,17 +2,12 @@
 const express = require('express');
 const router = express.Router();
 const maintenanceController = require('../controllers/maintenance.controller');
-const auth = require('../middlewares/auth.middleware');
-const permissions = require('../middlewares/permissions.middleware');
+const auth = require('../middlewares/auth.middleware');  // si quieres proteger las rutas
 
-router.get('/', auth, maintenanceController.getAllMaintenances);
-
-router.post('/', auth, permissions('admin'), maintenanceController.createMaintenance);
-
-router.get('/:id', auth, maintenanceController.getMaintenanceById);
-
-router.put('/:id', auth, permissions('admin'), maintenanceController.updateMaintenance);
-
-router.delete('/:id', auth, permissions('admin'), maintenanceController.deleteMaintenance);
+router.get('/', auth, maintenanceController.getAll);
+router.get('/:id', auth, maintenanceController.getById);
+router.post('/', auth, maintenanceController.create);
+router.put('/:id', auth, maintenanceController.update);
+router.delete('/:id', auth, maintenanceController.remove);
 
 module.exports = router;
