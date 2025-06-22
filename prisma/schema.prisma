@@ -1,29 +1,38 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
 model Usuario {
-  id       Int      @id @default(autoincrement())
+  id       Int    @id @default(autoincrement())
   nombre   String
-  email    String   @unique
+  email    String @unique
   password String
   rol      String
   permisos Json
-  citas    Cita[]
+  citas    Cita[] @relation("UsuarioCitas")
 }
 
 model Actividad {
-  id             Int       @id @default(autoincrement())
+  id             Int                 @id @default(autoincrement())
   nombre         String
   tipoId         Int
-  tipo           TipoActividad @relation(fields: [tipoId], references: [id])
+  tipo           TipoActividad       @relation(fields: [tipoId], references: [id])
   periodicidadId Int
-  periodicidad   Periodicidad  @relation(fields: [periodicidadId], references: [id])
+  periodicidad   Periodicidad        @relation(fields: [periodicidadId], references: [id])
   cupo           Int?
   lugarId        Int?
-  lugar          Lugar?
-  oferentes      OferenteActividad[]
+  lugar          Lugar?              @relation(fields: [lugarId], references: [id])
+  oferentes      OferenteActividad[] @relation("ActividadOferente")
   socioId        Int?
-  socio          SocioComunitario?
+  socio          SocioComunitario?   @relation(fields: [socioId], references: [id])
   beneficiarios  Beneficiario[]
   proyectoId     Int?
-  proyecto       Proyecto?
+  proyecto       Proyecto?           @relation(fields: [proyectoId], references: [id])
   archivos       Archivo[]
   citas          Cita[]
 }
@@ -36,42 +45,49 @@ model Cita {
   lugar       Lugar     @relation(fields: [lugarId], references: [id])
   fecha       DateTime
   hora        DateTime
+  usuarioId   Int?
+  usuario     Usuario?  @relation("UsuarioCitas", fields: [usuarioId], references: [id])
 }
 
 model TipoActividad {
-  id          Int       @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   nombre      String
   descripcion String
   actividades Actividad[]
 }
 
 model Periodicidad {
-  id      Int     @id @default(autoincrement())
-  nombre  String
+  id          Int         @id @default(autoincrement())
+  nombre      String
   actividades Actividad[]
 }
 
 model Lugar {
-  id      Int     @id @default(autoincrement())
-  nombre  String
-  cupo    Int?
-  citas   Cita[]
+  id          Int         @id @default(autoincrement())
+  nombre      String
+  cupo        Int?
+  citas       Cita[]
+  actividades Actividad[]
 }
 
 model OferenteActividad {
-  id       Int     @id @default(autoincrement())
-  nombre   String
-  docente  String
+  id          Int       @id @default(autoincrement())
+  nombre      String
+  docente     String
+  actividad   Actividad @relation("ActividadOferente", fields: [actividadId], references: [id])
+  actividadId Int
 }
 
 model SocioComunitario {
-  id      Int      @id @default(autoincrement())
-  nombre  String
+  id          Int         @id @default(autoincrement())
+  nombre      String
+  actividades Actividad[]
 }
 
 model Proyecto {
-  id      Int      @id @default(autoincrement())
-  nombre  String
+  id          Int         @id @default(autoincrement())
+  nombre      String
+  actividades Actividad[]
 }
 
 model Archivo {
@@ -83,8 +99,8 @@ model Archivo {
 }
 
 model Beneficiario {
-  id            Int       @id @default(autoincrement())
+  id              Int       @id @default(autoincrement())
   caracterizacion String
-  actividadId   Int
-  actividad     Actividad @relation(fields: [actividadId], references: [id])
+  actividadId     Int
+  actividad       Actividad @relation(fields: [actividadId], references: [id])
 }

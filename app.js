@@ -1,16 +1,17 @@
-// app.js
-
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import morgan from 'morgan';
-import rateLimiter from './middlewares/rateLimiter.js';
-import csrfMiddleware from './middlewares/csrf.middleware.js';
-import authMiddleware from './middlewares/auth.middleware.js';
-import { PrismaClient } from '@prisma/client';
+import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 
-// Importar rutas
+import { PrismaClient } from '@prisma/client';
+
+import logger from './utils/logger.js';
+import authMiddleware from './middlewares/auth.middleware.js';
+import csrfMiddleware from './middlewares/csrf.middleware.js';
+
+// Routers
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
 import activityRoutes from './routes/activity.routes.js';
@@ -18,29 +19,55 @@ import appointmentRoutes from './routes/appointment.routes.js';
 import fileRoutes from './routes/file.routes.js';
 import maintenanceRoutes from './routes/maintenance.routes.js';
 
-// Cargar variables de entorno
+// Carga variables de entorno
 dotenv.config();
 
 const app = express();
 const prisma = new PrismaClient();
 
-// Middlewares globales
-app.use(helmet());                     // Seguridad HTTP headers
-app.use(cors());                       // CORS
-app.use(morgan('dev'));                // Logging HTTP requests
-app.use(express.json());               // Parsear JSON en body
-app.use(express.urlencoded({ extended: true })); // Parsear body urlencoded
+const PORT = process.env.PORT || 3000;
 
-// Rate limiter (limitar peticiones)
-app.use(rateLimiter);
+// CORS - ajusta allowedOrigins con tus dominios frontend permitidos
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://tudominio-frontend.com'
+];
 
-// Middleware CSRF (ejemplo, solo en rutas protegidas)
+app.use(cors({
+  origin: function(origin, callback) {
+    // Permitir solicitudes sin origin (postman, curl)
+    if(!origin) return callback(null, true);
+    if(allowedOrigins.indexOf(origin) === -1){
+      const msg = 'La política de CORS no permite este origen.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+}));
+
+// Seguridad HTTP headers
+app.use(helmet());
+
+// Limitar peticiones para evitar ataques DoS
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 100 // máximo 100 solicitudes por IP
+});
+app.use(limiter);
+
+// Parseo JSON y cookies
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+// CSRF middleware (si usas cookies)
 app.use(csrfMiddleware);
 
-// Rutas públicas
+// Rutas públicas (auth)
 app.use('/api/auth', authRoutes);
 
-// Middleware para proteger rutas con autenticación JWT
+// Middleware para rutas protegidas
 app.use(authMiddleware);
 
 // Rutas protegidas
@@ -50,34 +77,20 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 
-// Ruta para probar conexión Prisma
-app.get('/health', async (req, res) => {
-  try {
-    await prisma.$queryRaw`SELECT 1`; // Simple ping a BD
-    res.status(200).json({ status: 'ok', database: 'connected' });
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: 'Database connection failed' });
-  }
-});
-
-// Middleware para manejar errores 404
+// Manejo de rutas no encontradas
 app.use((req, res, next) => {
-  res.status(404).json({ message: 'Endpoint not found' });
+  res.status(404).json({ error: 'Endpoint no encontrado' });
 });
 
-// Middleware global para manejo de errores
+// Manejo de errores global
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  logger.error(err.stack);
   res.status(err.status || 500).json({
-    error: {
-      message: err.message || 'Internal Server Error'
-    }
+    error: err.message || 'Error interno del servidor'
   });
 });
 
-// Puerto
-const PORT = process.env.PORT || 3000;
-
+// Iniciar servidor
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Servidor corriendo en puerto ${PORT}`);
 });
