@@ -7,7 +7,6 @@ import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 
 import * as logger from './utils/logger.js';
-import { csrfProtection } from './middlewares/csrf.middleware.js';
 import { auth } from './middlewares/auth.middleware.js';
 
 import { router as authRoutes } from './routes/auth.routes.js';
@@ -47,14 +46,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// **Rutas de auth sin CSRF: solo /register y /login**
-app.post('/api/auth/register', authRoutes);
-app.post('/api/auth/login', authRoutes);
+// Rutas públicas sin autenticación
+app.use('/api/auth', authRoutes);
 
-// **Middleware CSRF para todas las demás rutas protegidas**
-app.use(csrfProtection);
-
-// Middleware autenticación para rutas protegidas
+// Middleware de autenticación para rutas protegidas
 app.use(auth);
 
 // Rutas protegidas

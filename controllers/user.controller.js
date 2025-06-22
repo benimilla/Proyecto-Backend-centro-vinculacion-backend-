@@ -2,37 +2,35 @@
 import { prisma } from '../config/db.js';
 
 export async function getAll(req, res) {
-  const users = await prisma.user.findMany({
-    select: { id: true, name: true, email: true, role: true }
+  const usuarios = await prisma.usuario.findMany({
+    select: { id: true, nombre: true, email: true, rol: true }
   });
-  res.json(users);
+  res.json(usuarios);
 }
 
 export async function getById(req, res) {
   const { id } = req.params;
-  const user = await prisma.user.findUnique({ where: { id: Number(id) } });
-  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
-  res.json(user);
+  const usuario = await prisma.usuario.findUnique({ where: { id: Number(id) } });
+  if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
+  res.json(usuario);
 }
 
 export async function create(req, res) {
   try {
-    const { name, email, password, role = 'USER' } = req.body;
+    const { nombre, email, password, rol = 'USER' } = req.body;
 
-    // Aquí podrías agregar validación, hashing de contraseña, etc.
-    // Por ejemplo, usar bcrypt para hashear la contraseña:
-    // import bcrypt from 'bcrypt';
-    // const hashedPassword = await bcrypt.hash(password, 10);
+    // bcrypt hashing
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await prisma.user.create({
+    const usuario = await prisma.usuario.create({
       data: {
-        name,
+        nombre,
         email,
-        password, // Mejor guardar hashedPassword si haces hashing
-        role,
+        password: hashedPassword,
+        rol,
       }
     });
-    res.status(201).json(user);
+    res.status(201).json(usuario);
   } catch (error) {
     res.status(500).json({ error: 'Error al crear usuario', details: error.message });
   }
@@ -41,12 +39,12 @@ export async function create(req, res) {
 export async function update(req, res) {
   const { id } = req.params;
   const data = req.body;
-  const user = await prisma.user.update({ where: { id: Number(id) }, data });
-  res.json(user);
+  const usuario = await prisma.usuario.update({ where: { id: Number(id) }, data });
+  res.json(usuario);
 }
 
 export async function remove(req, res) {
   const { id } = req.params;
-  await prisma.user.delete({ where: { id: Number(id) } });
+  await prisma.usuario.delete({ where: { id: Number(id) } });
   res.status(204).end();
 }
