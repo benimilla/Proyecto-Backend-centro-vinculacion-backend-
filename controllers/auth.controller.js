@@ -48,35 +48,34 @@ export async function login(req, res) {
 }
 
 export async function forgotPassword(req, res) {
-  try {
-    const { email } = req.body;
-    const usuario = await prisma.usuario.findUnique({ where: { email } });
+  const { email } = req.body;
+  const usuario = await prisma.usuario.findUnique({ where: { email } });
 
-    if (!usuario) return res.status(404).json({ error: 'Correo no encontrado' });
-
-    const token = crypto.randomBytes(32).toString('hex');
-    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
-
-    await prisma.usuario.update({
-      where: { email },
-      data: {
-        resetToken: token,
-        resetTokenExp: expires,
-      }
-    });
-
-    const link = `${FRONTEND_URL}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
-    await sendMail({
-      to: email,
-      subject: 'Recuperación de contraseña',
-      html: `<p>Haz clic <a href="${link}">aquí</a> para recuperar tu contraseña.</p>`,
-    });
-
-    res.json({ message: 'Instrucciones enviadas al correo.' });
-
-  } catch (error) {
-    res.status(500).json({ error: 'Error al enviar correo de recuperación', detalle: error.message });
+  if (!usuario) {
+    // Aquí devuelves el mensaje solicitado y código 404
+    return res.status(404).json({ error: 'El correo no está registrado' });
   }
+
+  // Si el usuario existe, sigue con la lógica de generación de token, envío de email, etc.
+  const token = crypto.randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+
+  await prisma.usuario.update({
+    where: { email },
+    data: {
+      resetToken: token,
+      resetTokenExp: expires,
+    }
+  });
+
+  const link = `${process.env.FRONTEND_URL}/reset-password?token=${token}&email=${email}`;
+  await sendMail({
+    to: email,
+    subject: 'Recuperación de contraseña',
+    html: `<p>Haz clic <a href="${link}">aquí</a> para recuperar tu contraseña.</p>`,
+  });
+
+  res.json({ message: 'Instrucciones enviadas al correo.' });
 }
 
 export async function resetPassword(req, res) {
