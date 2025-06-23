@@ -30,7 +30,7 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
+    if (!origin) return callback(null, true); // para requests sin origin (Postman)
     if (!allowedOrigins.includes(origin)) {
       return callback(new Error('La política de CORS no permite este origen.'), false);
     }
@@ -38,6 +38,7 @@ app.use(cors({
   },
   credentials: true,
 }));
+
 
 // Seguridad y parsing
 app.use(helmet());
@@ -69,6 +70,7 @@ app.use((err, req, res, next) => {
   (logger.error || logger.default?.error)(err.stack || err.message || 'Error desconocido');
   res.status(err.status || 500).json({ error: err.message || 'Error interno del servidor' });
 });
+
 
 // Iniciar servidor
 app.listen(PORT, () => {
