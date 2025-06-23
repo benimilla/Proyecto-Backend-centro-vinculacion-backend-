@@ -16,6 +16,13 @@ import { router as appointmentRoutes } from './routes/appointment.routes.js';
 import { router as fileRoutes } from './routes/file.routes.js';
 import { router as maintenanceRoutes } from './routes/maintenance.routes.js';
 
+// Nuevos mantenedores
+import { router as tipoActividadRoutes } from './routes/tipoActividad.routes.js';
+import { router as lugarRoutes } from './routes/lugar.routes.js';
+import { router as oferenteRoutes } from './routes/oferente.routes.js';
+import { router as socioRoutes } from './routes/socio.routes.js';
+import { router as proyectoRoutes } from './routes/proyecto.routes.js';
+
 dotenv.config();
 
 const app = express();
@@ -39,7 +46,6 @@ app.use(cors({
   credentials: true,
 }));
 
-
 // Seguridad y parsing
 app.use(helmet());
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
@@ -60,6 +66,13 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 
+// Nuevas rutas protegidas
+app.use('/api/tipos-actividad', tipoActividadRoutes);
+app.use('/api/lugares', lugarRoutes);
+app.use('/api/oferentes', oferenteRoutes);
+app.use('/api/socios', socioRoutes);
+app.use('/api/proyectos', proyectoRoutes);
+
 // 404
 app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint no encontrado' });
@@ -71,8 +84,7 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.message || 'Error interno del servidor' });
 });
 
-
 // Iniciar servidor
 app.listen(PORT, () => {
-  console.log(`Servidor corriendo en puerto ${PORT}`);
+  console.log(`✅ Servidor corriendo en puerto ${PORT}`);
 });
