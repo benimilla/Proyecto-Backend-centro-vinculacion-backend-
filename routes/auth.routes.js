@@ -1,10 +1,19 @@
 import express from 'express';
-import { register, login } from '../controllers/auth.controller.js';
+import {
+  register,
+  login,
+  forgotPassword,
+  resetPassword
+} from '../controllers/auth.controller.js';
 
 const router = express.Router();
 
-// Aquí definimos los endpoints concretos que luego usamos en app.js
+// Registro y login
 router.post('/register', register);
 router.post('/login', login);
+
+// Recuperación de contraseña
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
 
 export { router };
