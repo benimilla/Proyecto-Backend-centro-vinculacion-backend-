@@ -8,13 +8,16 @@ datasource db {
 }
 
 model Usuario {
-  id       Int     @id @default(autoincrement())
-  nombre   String
-  email    String  @unique
-  password String
-  rol      String?
-  permisos Json?
-  citas    Cita[]  @relation("UsuarioCitas")
+  id            Int       @id @default(autoincrement())
+  nombre        String
+  email         String    @unique
+  password      String
+  rol           String?
+  permisos      Json?
+  citas         Cita[]    @relation("UsuarioCitas")
+
+  resetToken    String?   // campo opcional para token de reseteo
+  resetTokenExp DateTime? // campo opcional para expiración del token
 }
 
 model Actividad {

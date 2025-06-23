@@ -115,3 +115,23 @@ The column `railway.Usuario.resetToken` does not exist in the current database.
     at Zn.request (C:\centro-vinculacion-backend\node_modules\@prisma\client\runtime\library.js:121:6491)
     at async l (C:\centro-vinculacion-backend\node_modules\@prisma\client\runtime\library.js:130:9778)
     at async forgotPassword (file:///C:/centro-vinculacion-backend/controllers/auth.controller.js:30:16)
+2025-06-23T01:33:29.568Z [error]: PrismaClientKnownRequestError: 
+Invalid `prisma.usuario.findUnique()` invocation:
+
+
+The column `railway.Usuario.resetToken` does not exist in the current database.
+    at Zn.handleRequestError (C:\centro-vinculacion-backend\node_modules\@prisma\client\runtime\library.js:121:7459)
+    at Zn.handleAndLogRequestError (C:\centro-vinculacion-backend\node_modules\@prisma\client\runtime\library.js:121:6784)
+    at Zn.request (C:\centro-vinculacion-backend\node_modules\@prisma\client\runtime\library.js:121:6491)
+    at async l (C:\centro-vinculacion-backend\node_modules\@prisma\client\runtime\library.js:130:9778)
+    at async forgotPassword (file:///C:/centro-vinculacion-backend/controllers/auth.controller.js:30:16)
+2025-06-23T01:34:50.460Z [error]: PrismaClientKnownRequestError: 
+Invalid `prisma.usuario.findUnique()` invocation:
+
+
+The column `railway.Usuario.resetToken` does not exist in the current database.
+    at Zn.handleRequestError (C:\centro-vinculacion-backend\node_modules\@prisma\client\runtime\library.js:121:7459)
+    at Zn.handleAndLogRequestError (C:\centro-vinculacion-backend\node_modules\@prisma\client\runtime\library.js:121:6784)
+    at Zn.request (C:\centro-vinculacion-backend\node_modules\@prisma\client\runtime\library.js:121:6491)
+    at async l (C:\centro-vinculacion-backend\node_modules\@prisma\client\runtime\library.js:130:9778)
+    at async forgotPassword (file:///C:/centro-vinculacion-backend/controllers/auth.controller.js:30:16)
