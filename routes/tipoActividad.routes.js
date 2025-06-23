@@ -1,5 +1,5 @@
 import express from 'express';
-import * as controller from '../controllers/socio.controller.js';
+import * as controller from '../controllers/tipoActividad.controller.js';
 import { auth } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
