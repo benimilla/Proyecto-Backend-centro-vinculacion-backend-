@@ -23,12 +23,17 @@ model Usuario {
 model Actividad {
   id             Int                 @id @default(autoincrement())
   nombre         String
+  descripcion    String?
   tipoId         Int
   periodicidadId Int
+  fechaInicio    DateTime?           // 👈 Agrega esto
+  fechaFin       DateTime?           // 👈 Y esto
   cupo           Int?
   lugarId        Int?
   socioId        Int?
   proyectoId     Int?
+  creadoPor      Int?
+
   lugar          Lugar?              @relation(fields: [lugarId], references: [id])
   periodicidad   Periodicidad        @relation(fields: [periodicidadId], references: [id])
   proyecto       Proyecto?           @relation(fields: [proyectoId], references: [id])
@@ -38,13 +43,9 @@ model Actividad {
   beneficiarios  Beneficiario[]
   citas          Cita[]
   oferentes      OferenteActividad[] @relation("ActividadOferente")
-
-  @@index([lugarId], map: "Actividad_lugarId_fkey")
-  @@index([periodicidadId], map: "Actividad_periodicidadId_fkey")
-  @@index([proyectoId], map: "Actividad_proyectoId_fkey")
-  @@index([socioId], map: "Actividad_socioId_fkey")
-  @@index([tipoId], map: "Actividad_tipoId_fkey")
 }
+
+
 
 model Cita {
   id          Int       @id @default(autoincrement())
