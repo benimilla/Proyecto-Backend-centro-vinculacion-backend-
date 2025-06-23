@@ -7,9 +7,22 @@ export async function create(req, res) {
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
+    const {
+      nombre,
+      tipoId,
+      periodicidadId
+      // otros campos que consideres obligatorios
+    } = req.body;
+
+    // Validación básica
+    if (!nombre) return res.status(400).json({ error: 'El campo nombre es obligatorio' });
+    if (!tipoId) return res.status(400).json({ error: 'El campo tipoId es obligatorio' });
+    if (!periodicidadId) return res.status(400).json({ error: 'El campo periodicidadId es obligatorio' });
+    // Puedes validar más campos según tu modelo
+
     const data = {
       ...req.body,
-      creadoPor: req.user.userId // campo correcto según tu modelo
+      creadoPor: req.user.userId
     };
 
     const actividad = await prisma.actividad.create({ data });
@@ -17,6 +30,13 @@ export async function create(req, res) {
     res.status(201).json(actividad);
   } catch (error) {
     console.error('Error al crear actividad:', error);
+
+    // Manejar errores de Prisma para campos faltantes o inválidos
+    if (error.code === 'P2002') {
+      return res.status(409).json({ error: 'Datos duplicados o conflicto' });
+    }
+    // Podrías agregar más códigos de error específicos
+
     res.status(500).json({ error: 'Error al crear actividad' });
   }
 }
@@ -58,10 +78,22 @@ export async function getById(req, res) {
 export async function update(req, res) {
   try {
     const { id } = req.params;
+    if (isNaN(Number(id))) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
+
+    const { nombre, tipoId, periodicidadId } = req.body;
+
+    // Si quieres campos obligatorios en update:
+    if (nombre === '') return res.status(400).json({ error: 'El campo nombre no puede estar vacío' });
+    if (tipoId !== undefined && !tipoId) return res.status(400).json({ error: 'El campo tipoId es obligatorio si se envía' });
+    if (periodicidadId !== undefined && !periodicidadId) return res.status(400).json({ error: 'El campo periodicidadId es obligatorio si se envía' });
+
     const actividad = await prisma.actividad.update({
       where: { id: Number(id) },
       data: req.body
     });
+
     res.json(actividad);
   } catch (error) {
     console.error('Error al actualizar actividad:', error);
