@@ -31,3 +31,57 @@
     at C:\centro-vinculacion-backend\node_modules\router\index.js:688:15
     at next (C:\centro-vinculacion-backend\node_modules\router\index.js:276:14)
     at Function.handle (C:\centro-vinculacion-backend\node_modules\router\index.js:186:3)
+2025-06-23T01:23:36.439Z [error]: PrismaClientValidationError: 
+Invalid `prisma.usuario.update()` invocation:
+
+{
+  where: {
+    email: "juanmelipillan2@gmail.com"
+  },
+  data: {
+    resetToken: "2b91dd0643ae72183b3e86215824a8e3259291eac17c7e380a8046a9621a9624",
+    ~~~~~~~~~~
+    resetTokenExp: new Date("2025-06-23T02:23:36.435Z"),
+?   nombre?: String | StringFieldUpdateOperationsInput,
+?   email?: String | StringFieldUpdateOperationsInput,
+?   password?: String | StringFieldUpdateOperationsInput,
+?   rol?: String | StringFieldUpdateOperationsInput,
+?   permisos?: JsonNullValueInput | Json,
+?   citas?: CitaUpdateManyWithoutUsuarioNestedInput
+  }
+}
+
+Unknown argument `resetToken`. Available options are marked with ?.
+    at kn (C:\centro-vinculacion-backend\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at Zn.handleRequestError (C:\centro-vinculacion-backend\node_modules\@prisma\client\runtime\library.js:121:7102)
+    at Zn.handleAndLogRequestError (C:\centro-vinculacion-backend\node_modules\@prisma\client\runtime\library.js:121:6784)
+    at Zn.request (C:\centro-vinculacion-backend\node_modules\@prisma\client\runtime\library.js:121:6491)
+    at async l (C:\centro-vinculacion-backend\node_modules\@prisma\client\runtime\library.js:130:9778)
+    at async forgotPassword (file:///C:/centro-vinculacion-backend/controllers/auth.controller.js:36:3)
+2025-06-23T01:27:14.339Z [error]: PrismaClientValidationError: 
+Invalid `prisma.usuario.update()` invocation:
+
+{
+  where: {
+    email: "juanmelipillan2@gmail.com"
+  },
+  data: {
+    resetToken: "c805a97c811de722a90e399737f6ff01dde2b9bbc719a31c4f7385388cdfc57b",
+    ~~~~~~~~~~
+    resetTokenExp: new Date("2025-06-23T02:27:14.337Z"),
+?   nombre?: String | StringFieldUpdateOperationsInput,
+?   email?: String | StringFieldUpdateOperationsInput,
+?   password?: String | StringFieldUpdateOperationsInput,
+?   rol?: String | StringFieldUpdateOperationsInput,
+?   permisos?: JsonNullValueInput | Json,
+?   citas?: CitaUpdateManyWithoutUsuarioNestedInput
+  }
+}
+
+Unknown argument `resetToken`. Available options are marked with ?.
+    at kn (C:\centro-vinculacion-backend\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at Zn.handleRequestError (C:\centro-vinculacion-backend\node_modules\@prisma\client\runtime\library.js:121:7102)
+    at Zn.handleAndLogRequestError (C:\centro-vinculacion-backend\node_modules\@prisma\client\runtime\library.js:121:6784)
+    at Zn.request (C:\centro-vinculacion-backend\node_modules\@prisma\client\runtime\library.js:121:6491)
+    at async l (C:\centro-vinculacion-backend\node_modules\@prisma\client\runtime\library.js:130:9778)
+    at async forgotPassword (file:///C:/centro-vinculacion-backend/controllers/auth.controller.js:36:3)
