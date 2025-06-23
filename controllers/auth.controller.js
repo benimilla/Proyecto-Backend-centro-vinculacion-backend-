@@ -9,25 +9,31 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 export async function register(req, res) {
   try {
     const { nombre, email, password } = req.body;
-    const hashed = await bcrypt.hash(password, 10);
 
+    // Verificar si el email ya existe
+    const usuarioExistente = await prisma.usuario.findUnique({ where: { email } });
+    if (usuarioExistente) {
+      return res.status(400).json({ error: 'Este email ya está registrado' });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
     const usuario = await prisma.usuario.create({
       data: {
         nombre,
         email,
         password: hashed,
         rol: 'USER',
-        permisos: {} // evitar error por campo requerido
+        permisos: {} // si lo tienes así en tu esquema
       }
     });
 
     const token = signToken({ userId: usuario.id, role: usuario.rol });
     res.status(201).json({ usuario, token });
-
   } catch (error) {
     res.status(500).json({ error: 'Error al registrar usuario', detalle: error.message });
   }
 }
+
 
 export async function login(req, res) {
   try {
