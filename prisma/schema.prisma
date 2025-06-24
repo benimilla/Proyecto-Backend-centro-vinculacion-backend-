@@ -98,9 +98,13 @@ model SocioComunitario {
 }
 
 model Proyecto {
-  id          Int         @id @default(autoincrement())
-  nombre      String
-  actividades Actividad[]
+  id           Int         @id @default(autoincrement())
+  nombre       String      @unique
+  descripcion  String?
+  fecha_inicio DateTime
+  fecha_fin    DateTime?
+  activo       Boolean     @default(true)
+  Actividad    Actividad[]
 }
 
 model Archivo {
