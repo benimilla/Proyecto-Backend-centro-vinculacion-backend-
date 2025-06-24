@@ -8,44 +8,41 @@ datasource db {
 }
 
 model Usuario {
-  id            Int       @id @default(autoincrement())
-  nombre        String
-  email         String    @unique
-  password      String
-  rol           String?
-  permisos      Json?
-  citas         Cita[]    @relation("UsuarioCitas")
+  id       Int     @id @default(autoincrement())
+  nombre   String
+  email    String  @unique
+  password String
+  rol      String?
+  permisos Json?
+  citas    Cita[]  @relation("UsuarioCitas")
 
-  resetToken    String?   // campo opcional para token de reseteo
+  resetToken    String? // campo opcional para token de reseteo
   resetTokenExp DateTime? // campo opcional para expiración del token
 }
 
 model Actividad {
-  id             Int                 @id @default(autoincrement())
+  id             Int       @id @default(autoincrement())
   nombre         String
   descripcion    String?
   tipoId         Int
   periodicidadId Int
-  fechaInicio    DateTime?           // 👈 Agrega esto
-  fechaFin       DateTime?           // 👈 Y esto
+  fechaInicio    DateTime? // 👈 Agrega esto
+  fechaFin       DateTime? // 👈 Y esto
   cupo           Int?
   lugarId        Int?
   socioId        Int?
   proyectoId     Int?
   creadoPor      Int?
 
-  lugar          Lugar?              @relation(fields: [lugarId], references: [id])
-  periodicidad   Periodicidad        @relation(fields: [periodicidadId], references: [id])
-  proyecto       Proyecto?           @relation(fields: [proyectoId], references: [id])
-  socio          SocioComunitario?   @relation(fields: [socioId], references: [id])
-  tipo           TipoActividad       @relation(fields: [tipoId], references: [id])
-  archivos       Archivo[]
-  beneficiarios  Beneficiario[]
-  citas          Cita[]
-  oferentes      OferenteActividad[] @relation("ActividadOferente")
+  lugar         Lugar?              @relation(fields: [lugarId], references: [id])
+  periodicidad  Periodicidad        @relation(fields: [periodicidadId], references: [id])
+  proyecto      Proyecto?           @relation(fields: [proyectoId], references: [id])
+  tipo          TipoActividad       @relation(fields: [tipoId], references: [id])
+  archivos      Archivo[]
+  beneficiarios Beneficiario[]
+  citas         Cita[]
+  oferentes     OferenteActividad[] @relation("ActividadOferente")
 }
-
-
 
 model Cita {
   id          Int       @id @default(autoincrement())
@@ -95,9 +92,9 @@ model OferenteActividad {
 }
 
 model SocioComunitario {
-  id          Int         @id @default(autoincrement())
-  nombre      String
-  actividades Actividad[]
+  id     Int     @id @default(autoincrement())
+  nombre String  @unique
+  activo Boolean @default(true)
 }
 
 model Proyecto {
