@@ -25,6 +25,41 @@ export function generarFechasCitas(fechaInicio, fechaFin, periodicidad) {
   return fechas;
 }
 
+
+// Obtener todas las actividades
+export async function getAll(req, res) {
+  try {
+    // Opcional: recibir query params para paginación
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 10;
+    const skip = (page - 1) * pageSize;
+
+    const actividades = await prisma.actividad.findMany({
+      skip,
+      take: pageSize,
+      orderBy: {
+        fechaInicio: 'desc',
+      },
+      include: {
+        citas: true,
+        archivos: true,
+      },
+    });
+
+    const totalCount = await prisma.actividad.count();
+
+    res.json({
+      page,
+      pageSize,
+      totalCount,
+      actividades,
+    });
+  } catch (error) {
+    console.error('Error al obtener actividades:', error);
+    res.status(500).json({ error: 'Error al obtener actividades' });
+  }
+}
+
 // Crear nueva actividad (con citas si es periódica)
 export async function create(req, res) {
   try {
