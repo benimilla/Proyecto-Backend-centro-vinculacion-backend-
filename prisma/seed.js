@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
-  // Tipos de actividad
+  // Crear tipos de actividad
   const tipo1 = await prisma.tipoActividad.create({
     data: {
       nombre: 'Deportivo',
@@ -19,16 +19,11 @@ async function main() {
     },
   });
 
-  // Periodicidades
-  const periodicidad1 = await prisma.periodicidad.create({
-    data: { nombre: 'Semanal' },
-  });
+  // NOTA: periodicidad lo manejamos como string, no hay tabla Periodicidad
+  const periodicidad1 = 'Semanal';
+  const periodicidad2 = 'Mensual';
 
-  const periodicidad2 = await prisma.periodicidad.create({
-    data: { nombre: 'Mensual' },
-  });
-
-  // Lugares
+  // Crear lugares
   const lugar1 = await prisma.lugar.create({
     data: { nombre: 'Auditorio Principal', cupo: 100 },
   });
@@ -37,49 +32,67 @@ async function main() {
     data: { nombre: 'Sala de Conferencias', cupo: 50 },
   });
 
-  // Socios comunitarios
+  // Crear socios comunitarios
   await prisma.socioComunitario.createMany({
     data: [
       { nombre: 'Fundación Esperanza' },
       { nombre: 'Junta de Vecinos El Progreso' },
       { nombre: 'Centro Cultural Raíces' },
       { nombre: 'ONG Manos Solidarias' },
-      { nombre: 'Asociación Juvenil Los Robles' }
+      { nombre: 'Asociación Juvenil Los Robles' },
     ],
-    skipDuplicates: true
+    skipDuplicates: true,
   });
 
-  // Usuario administrador (contraseña hasheada)
+  // Crear usuario administrador (contraseña hasheada)
   const hashedPassword = await bcrypt.hash('admin1234', 10);
   const admin = await prisma.usuario.create({
     data: {
       nombre: 'Admin',
       email: 'admin@ejemplo.com',
       password: hashedPassword,
-      rol: 'ADMIN',
-      permisos: { admin: true, editar: true },
+      rol: 'ADMIN', // si tienes campo rol, sino eliminar
+      // permisos deben ir en tabla permisos_usuario, no aquí
     },
   });
 
-  // Actividad ejemplo
+  // Para asignar permisos, debes crear entradas en permisos_usuario si así lo tienes
+  // Ejemplo (opcional, si tienes modelo permisosUsuario):
+  /*
+  await prisma.permisosUsuario.createMany({
+    data: [
+      { usuarioId: admin.id, permiso: 'admin', asignadoPor: admin.id },
+      { usuarioId: admin.id, permiso: 'editar', asignadoPor: admin.id },
+    ],
+    skipDuplicates: true,
+  });
+  */
+
+  // Crear una actividad
   const actividad = await prisma.actividad.create({
     data: {
       nombre: 'Clases de Yoga',
-      tipoId: tipo2.id,
-      periodicidadId: periodicidad1.id,
+      tipoActividadId: tipo2.id,
+      periodicidad: periodicidad1,
+      fechaInicio: new Date('2025-07-01'),
+      // fechaFin opcional
       cupo: 20,
-      lugarId: lugar1.id,
-      socioId: 1, // asegúrate de que el socio existe
+      socioComunitarioId: 1, // Asegúrate que el socio con ID 1 exista
+      estado: 'Programada',
+      creadoPorId: admin.id,
     },
   });
 
-  // Cita ligada a la actividad
+  // Crear una cita ligada a la actividad
   await prisma.cita.create({
     data: {
       actividadId: actividad.id,
       lugarId: lugar1.id,
-      fecha: new Date('2025-07-01T00:00:00Z'),
-      hora: new Date('2025-07-01T10:00:00Z'),
+      fecha: new Date('2025-07-01'),
+      horaInicio: '10:00:00',
+      horaFin: '11:00:00',
+      estado: 'Programada',
+      creadoPorId: admin.id,
     },
   });
 

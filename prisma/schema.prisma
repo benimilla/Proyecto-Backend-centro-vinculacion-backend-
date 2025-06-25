@@ -8,56 +8,36 @@ datasource db {
 }
 
 model Usuario {
-  id       Int     @id @default(autoincrement())
-  nombre   String
-  email    String  @unique
-  password String
-  rol      String?
-  permisos Json?
-  citas    Cita[]  @relation("UsuarioCitas")
+  id                Int               @id @default(autoincrement())
+  nombre            String
+  email             String            @unique
+  password          String
+  rol               String?
+  permisos          Json?
+  
+  citas             Cita[]            @relation("UsuarioCitas")
+  permisosAsignados  PermisoUsuario[]  @relation("PermisosAsignados")
+  permisosOtorgados  PermisoUsuario[]  @relation("PermisosOtorgados")
+  actividadesCreadas Actividad[]       @relation("UsuarioActividadesCreadas")
+  archivosCargados   Archivo[]         @relation("UsuarioArchivosCargados")
 
-  resetToken    String? // campo opcional para token de reseteo
-  resetTokenExp DateTime? // campo opcional para expiración del token
+  resetToken        String? 
+  resetTokenExp     DateTime?
+
 }
 
-model Actividad {
-  id             Int       @id @default(autoincrement())
-  nombre         String
-  descripcion    String?
-  tipoId         Int
-  periodicidadId Int
-  fechaInicio    DateTime? // 👈 Agrega esto
-  fechaFin       DateTime? // 👈 Y esto
-  cupo           Int?
-  lugarId        Int?
-  socioId        Int?
-  proyectoId     Int?
-  creadoPor      Int?
+model PermisoUsuario {
+  id              Int       @id @default(autoincrement())
+  usuarioId       Int
+  usuario         Usuario   @relation("PermisosAsignados", fields: [usuarioId], references: [id], onDelete: Cascade)
+  permiso         String    @db.VarChar(50)
+  fechaAsignacion DateTime  @default(now())
+  asignadoPorId   Int?      
+  asignadoPor     Usuario?  @relation("PermisosOtorgados", fields: [asignadoPorId], references: [id])
 
-  lugar         Lugar?              @relation(fields: [lugarId], references: [id])
-  periodicidad  Periodicidad        @relation(fields: [periodicidadId], references: [id])
-  proyecto      Proyecto?           @relation(fields: [proyectoId], references: [id])
-  tipo          TipoActividad       @relation(fields: [tipoId], references: [id])
-  archivos      Archivo[]
-  beneficiarios Beneficiario[]
-  citas         Cita[]
-  oferentes     OferenteActividad[] @relation("ActividadOferente")
-}
-
-model Cita {
-  id          Int       @id @default(autoincrement())
-  actividadId Int
-  lugarId     Int
-  fecha       DateTime
-  hora        DateTime
-  usuarioId   Int?
-  actividad   Actividad @relation(fields: [actividadId], references: [id])
-  lugar       Lugar     @relation(fields: [lugarId], references: [id])
-  usuario     Usuario?  @relation("UsuarioCitas", fields: [usuarioId], references: [id])
-
-  @@index([actividadId], map: "Cita_actividadId_fkey")
-  @@index([lugarId], map: "Cita_lugarId_fkey")
-  @@index([usuarioId], map: "Cita_usuarioId_fkey")
+  @@unique([usuarioId, permiso], name: "unique_user_permission")
+  @@index([usuarioId])
+  @@index([asignadoPorId])
 }
 
 model TipoActividad {
@@ -70,58 +50,153 @@ model TipoActividad {
 model Periodicidad {
   id          Int         @id @default(autoincrement())
   nombre      String
-  actividades Actividad[]
+  actividades Actividad[]  @relation("PeriodicidadActividades")
 }
 
 model Lugar {
-  id          Int         @id @default(autoincrement())
-  nombre      String
-  cupo        Int?
-  actividades Actividad[]
-  citas       Cita[]
+  id     Int     @id @default(autoincrement())
+  nombre String  @unique @db.VarChar(100)
+  cupo   Int?
+  activo Boolean @default(true)
+
+  citas  Cita[]  @relation("LugarCitas")
+
+  @@map("lugares")
 }
 
-model OferenteActividad {
-  id          Int       @id @default(autoincrement())
-  nombre      String
-  docente     String
-  actividadId Int
-  actividad   Actividad @relation("ActividadOferente", fields: [actividadId], references: [id])
+model Oferente {
+  id                 Int               @id @default(autoincrement())
+  nombre             String            @unique @db.VarChar(100)
+  docenteResponsable  String            @db.VarChar(100)
+  activo             Boolean           @default(true)
 
-  @@index([actividadId], map: "OferenteActividad_actividadId_fkey")
+  actividadesOferentes ActividadOferente[] @relation("OferenteActividades")
+
+  @@map("oferentes")
+}
+
+model ActividadOferente {
+  actividadId  Int
+  oferenteId   Int
+
+  actividad    Actividad   @relation("ActividadOferentes", fields: [actividadId], references: [id], map: "fk_actividad_oferente_actividad")
+  oferente     Oferente    @relation("OferenteActividades", fields: [oferenteId], references: [id], map: "fk_actividad_oferente_oferente")
+
+  @@id([actividadId, oferenteId])
+  @@map("actividades_oferentes")
 }
 
 model SocioComunitario {
-  id     Int     @id @default(autoincrement())
-  nombre String  @unique
-  activo Boolean @default(true)
+  id          Int        @id @default(autoincrement())
+  nombre      String     @unique @db.VarChar(100)
+  activo      Boolean    @default(true)
+
+  actividades Actividad[]
+
+  @@map("socios_comunitarios")
 }
 
 model Proyecto {
-  id           Int         @id @default(autoincrement())
-  nombre       String      @unique
-  descripcion  String?
-  fecha_inicio DateTime
-  fecha_fin    DateTime?
-  activo       Boolean     @default(true)
-  Actividad    Actividad[]
+  id           Int          @id @default(autoincrement())
+  nombre       String       @unique @db.VarChar(100)
+  descripcion  String?      @db.Text
+  fechaInicio  DateTime     @db.Date
+  fechaFin     DateTime?    @db.Date
+  activo       Boolean      @default(true)
+
+  actividades  Actividad[]
+
+  @@map("proyectos")
+}
+
+model Actividad {
+  id                 Int              @id @default(autoincrement())
+  nombre             String           @db.VarChar(100)
+  tipoActividadId    Int
+  tipoActividad      TipoActividad    @relation(fields: [tipoActividadId], references: [id])
+  periodicidadId     Int
+  periodicidad       Periodicidad     @relation("PeriodicidadActividades", fields: [periodicidadId], references: [id])
+  fechaInicio        DateTime         @db.Date
+  fechaFin           DateTime?        @db.Date
+  cupo               Int?
+  socioComunitarioId Int
+  socioComunitario   SocioComunitario @relation(fields: [socioComunitarioId], references: [id])
+  proyectoId         Int?
+  proyecto           Proyecto?        @relation(fields: [proyectoId], references: [id])
+  estado             String           @default("Programada") @db.VarChar(50)
+  fechaCreacion      DateTime         @default(now())
+  creadoPorId        Int
+  creadoPor          Usuario          @relation("UsuarioActividadesCreadas", fields: [creadoPorId], references: [id])
+
+  archivos           Archivo[]
+  citas              Cita[]           @relation("ActividadCitas")
+  actividadesBeneficiarios ActividadBeneficiario[]
+
+  actividadesOferentes ActividadOferente[] @relation("ActividadOferentes")
+
+  @@index([tipoActividadId])
+  @@index([socioComunitarioId])
+  @@index([proyectoId])
+  @@index([creadoPorId])
+  @@map("actividades")
+}
+
+model Cita {
+  id                Int       @id @default(autoincrement())
+  actividadId       Int
+  actividad         Actividad  @relation("ActividadCitas", fields: [actividadId], references: [id])
+  lugarId           Int
+  lugar             Lugar      @relation("LugarCitas", fields: [lugarId], references: [id])
+  fecha             DateTime   @db.Date
+  horaInicio        String     // sin @db.Time para evitar error
+  horaFin           String?    // sin @db.Time para evitar error
+  estado            String     @default("Programada") @db.VarChar(50)
+  motivoCancelacion String?    @db.Text
+  fechaCreacion     DateTime   @default(now())
+  creadoPorId       Int
+  creadoPor         Usuario    @relation("UsuarioCitas", fields: [creadoPorId], references: [id])
+
+  @@index([actividadId])
+  @@index([lugarId])
+  @@index([creadoPorId])
+  @@map("citas")
 }
 
 model Archivo {
-  id          Int       @id @default(autoincrement())
-  url         String
-  descripcion String?
-  actividadId Int
-  actividad   Actividad @relation(fields: [actividadId], references: [id])
+  id           Int       @id @default(autoincrement())
+  nombre       String    @db.VarChar(255)
+  ruta         String    @db.VarChar(255)
+  tipo         String    @db.VarChar(100)
+  tamano       Int
+  actividadId  Int
+  actividad    Actividad @relation(fields: [actividadId], references: [id])
+  tipoAdjunto  String    @db.VarChar(50)
+  descripcion  String?   @db.Text
+  fechaCarga   DateTime  @default(now())
+  cargadoPorId Int
+  cargadoPor   Usuario   @relation("UsuarioArchivosCargados", fields: [cargadoPorId], references: [id])
 
-  @@index([actividadId], map: "Archivo_actividadId_fkey")
+  @@index([actividadId])
+  @@index([cargadoPorId])
 }
 
 model Beneficiario {
-  id              Int       @id @default(autoincrement())
-  caracterizacion String
-  actividadId     Int
-  actividad       Actividad @relation(fields: [actividadId], references: [id])
+  id              Int     @id @default(autoincrement())
+  caracterizacion String  @db.VarChar(200)
+  activo          Boolean @default(true)
 
-  @@index([actividadId], map: "Beneficiario_actividadId_fkey")
+  actividadesBeneficiarios ActividadBeneficiario[]
+
+  @@map("beneficiarios")
+}
+
+model ActividadBeneficiario {
+  actividadId     Int
+  beneficiarioId  Int
+
+  actividad      Actividad     @relation(fields: [actividadId], references: [id])
+  beneficiario   Beneficiario  @relation(fields: [beneficiarioId], references: [id])
+
+  @@id([actividadId, beneficiarioId])
+  @@map("actividades_beneficiarios")
 }
