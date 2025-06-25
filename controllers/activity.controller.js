@@ -1,55 +1,5 @@
 import { prisma } from '../config/db.js';
 
-export function generarFechasCitas(fechaInicio, fechaFin, periodicidad) {
-  const fechas = [];
-  let fechaActual = new Date(fechaInicio);
-
-  while (fechaActual <= fechaFin) {
-    fechas.push(new Date(fechaActual));
-
-    switch (periodicidad) {
-      case 'diaria':
-        fechaActual.setDate(fechaActual.getDate() + 1);
-        break;
-      case 'semanal':
-        fechaActual.setDate(fechaActual.getDate() + 7);
-        break;
-      case 'mensual':
-        fechaActual.setMonth(fechaActual.getMonth() + 1);
-        break;
-      default:
-        throw new Error('Periodicidad no soportada');
-    }
-  }
-
-  return fechas;
-}
-
-async function validarConflictosHorario(lugarId, fechas, horaInicio, horaFin, actividadIdExcluir = null) {
-  for (const fecha of fechas) {
-    const citasConflictivas = await prisma.cita.findMany({
-      where: {
-        lugarId,
-        fecha,
-        AND: [
-          { horaInicio: { lte: horaFin } },
-          { horaFin: { gte: horaInicio } },
-        ],
-        ...(actividadIdExcluir ? { actividadId: { not: actividadIdExcluir } } : {}),
-      },
-    });
-
-    if (citasConflictivas.length > 0) {
-      const lugar = await prisma.lugar.findUnique({ where: { id: lugarId } });
-      throw {
-        status: 409,
-        message: `El lugar ${lugar?.nombre || lugarId} ya está ocupado el ${fecha.toLocaleDateString()} de ${horaInicio} a ${horaFin}`,
-        sugerencias: [],
-      };
-    }
-  }
-}
-
 export async function getAll(req, res) {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -74,49 +24,29 @@ export async function getAll(req, res) {
 
 export async function create(req, res) {
   try {
-    // Recibo datos en snake_case y convierto a camelCase
     const {
       nombre,
       tipo_actividad_id,
       periodicidad,
       fecha_inicio,
       fecha_fin,
-      lugar_id,
-      hora_inicio,
-      hora_fin,
       socio_comunitario_id,
       proyecto_id,
       cupo,
     } = req.body;
 
-    const tipoId = tipo_actividad_id;
-    const fechaInicio = fecha_inicio;
-    const fechaFin = fecha_fin;
-    const lugarId = lugar_id;
-    const horaInicio = hora_inicio;
-    const horaFin = hora_fin;
-    const socioComunitarioId = socio_comunitario_id;
-    const proyectoId = proyecto_id && proyecto_id !== '' ? proyecto_id : null;
-
     const errores = {};
     if (!nombre) errores.nombre = 'El campo nombre es obligatorio';
-    if (!tipoId) errores.tipoId = 'El campo tipoId es obligatorio';
+    if (!tipo_actividad_id) errores.tipoActividadId = 'El campo tipoActividadId es obligatorio';
     if (!periodicidad) errores.periodicidad = 'El campo periodicidad es obligatorio';
-    if (!socioComunitarioId) errores.socioComunitarioId = 'El campo socioComunitarioId es obligatorio';
+    if (!fecha_inicio) errores.fechaInicio = 'El campo fechaInicio es obligatorio';
+    if (!socio_comunitario_id) errores.socioComunitarioId = 'El campo socioComunitarioId es obligatorio';
 
-    const isPeriodica = fechaInicio && fechaFin;
-    if (isPeriodica) {
-      const inicio = new Date(fechaInicio);
-      const fin = new Date(fechaFin);
-
-      if (isNaN(inicio)) errores.fechaInicio = 'Fecha de inicio inválida';
-      if (isNaN(fin)) errores.fechaFin = 'Fecha de fin inválida';
-      if (fin < inicio) errores.fechaFin = 'La fecha de fin no puede ser menor que la fecha de inicio';
-
-      if (!horaInicio) errores.horaInicio = 'Hora de inicio es obligatoria para actividad periódica';
-      if (!horaFin) errores.horaFin = 'Hora de fin es obligatoria para actividad periódica';
-      if (!lugarId) errores.lugarId = 'Lugar es obligatorio para actividad periódica';
-    }
+    const inicio = new Date(fecha_inicio);
+    const fin = fecha_fin ? new Date(fecha_fin) : null;
+    if (isNaN(inicio)) errores.fechaInicio = 'Fecha de inicio inválida';
+    if (fecha_fin && isNaN(fin)) errores.fechaFin = 'Fecha de fin inválida';
+    if (fin && fin < inicio) errores.fechaFin = 'La fecha de fin no puede ser menor que la de inicio';
 
     if (Object.keys(errores).length > 0) {
       return res.status(400).json({ errores });
@@ -126,34 +56,19 @@ export async function create(req, res) {
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    // Validar conflictos pero sin crear citas
-    if (isPeriodica) {
-      const fechas = generarFechasCitas(new Date(fechaInicio), new Date(fechaFin), periodicidad);
-      try {
-        await validarConflictosHorario(lugarId, fechas, horaInicio, horaFin);
-      } catch (conflicto) {
-        return res.status(conflicto.status || 409).json({
-          error: conflicto.message,
-          sugerencias: conflicto.sugerencias,
-        });
-      }
-    }
-
     const actividad = await prisma.actividad.create({
       data: {
         nombre,
-        tipoActividad: { connect: { id: tipoId } },
+        tipoActividadId: tipo_actividad_id,
         periodicidad,
-        fechaInicio: new Date(fechaInicio),
-        fechaFin: fechaFin ? new Date(fechaFin) : null,
-        socioComunitario: { connect: { id: socioComunitarioId } },
-        proyecto: proyectoId ? { connect: { id: proyectoId } } : undefined,
+        fechaInicio: inicio,
+        fechaFin: fin,
+        socioComunitarioId: socio_comunitario_id,
+        proyectoId: proyecto_id || null,
         cupo: cupo ?? undefined,
-        creadoPor: { connect: { id: req.user.userId } },
+        creadoPorId: req.user.userId,
       },
     });
-
-    // No se crean citas automáticamente
 
     res.status(201).json({ message: 'Actividad creada exitosamente', actividad });
   } catch (error) {
@@ -161,7 +76,6 @@ export async function create(req, res) {
     res.status(500).json({ error: 'Error al crear actividad', detalle: error.message });
   }
 }
-
 
 export async function getById(req, res) {
   try {
@@ -189,75 +103,33 @@ export async function update(req, res) {
       return res.status(400).json({ error: 'ID inválido' });
     }
 
-    // Recibo datos en snake_case y convierto a camelCase
     const {
       nombre,
       tipo_actividad_id,
       periodicidad,
       fecha_inicio,
       fecha_fin,
-      lugar_id,
-      hora_inicio,
-      hora_fin,
       socio_comunitario_id,
       proyecto_id,
       cupo,
     } = req.body;
 
-    const tipoId = tipo_actividad_id;
-    const fechaInicio = fecha_inicio;
-    const fechaFin = fecha_fin;
-    const lugarId = lugar_id;
-    const horaInicio = hora_inicio;
-    const horaFin = hora_fin;
-    const socioComunitarioId = socio_comunitario_id;
-    const proyectoId = proyecto_id && proyecto_id !== '' ? proyecto_id : null;
-
-    if (nombre !== undefined && nombre === '') {
-      return res.status(400).json({ error: 'El campo nombre no puede estar vacío' });
-    }
-    if (tipoId !== undefined && !tipoId) {
-      return res.status(400).json({ error: 'El campo tipoId es obligatorio si se envía' });
-    }
-    if (periodicidad !== undefined && !periodicidad) {
-      return res.status(400).json({ error: 'El campo periodicidad es obligatorio si se envía' });
-    }
-    if (socioComunitarioId !== undefined && !socioComunitarioId) {
-      return res.status(400).json({ error: 'El campo socioComunitarioId es obligatorio si se envía' });
-    }
-
-    const isPeriodica = fechaInicio && fechaFin;
-    if (isPeriodica) {
-      const inicio = new Date(fechaInicio);
-      const fin = new Date(fechaFin);
-
-      if (isNaN(inicio)) return res.status(400).json({ error: 'Fecha de inicio inválida' });
-      if (isNaN(fin)) return res.status(400).json({ error: 'Fecha de fin inválida' });
-      if (fin < inicio) return res.status(400).json({ error: 'La fecha de fin no puede ser menor que la fecha de inicio' });
-
-      if (!horaInicio) return res.status(400).json({ error: 'Hora de inicio es obligatoria para actividad periódica' });
-      if (!horaFin) return res.status(400).json({ error: 'Hora de fin es obligatoria para actividad periódica' });
-      if (!lugarId) return res.status(400).json({ error: 'Lugar es obligatorio para actividad periódica' });
-
-      try {
-        await validarConflictosHorario(lugarId, generarFechasCitas(new Date(fechaInicio), new Date(fechaFin), periodicidad), horaInicio, horaFin, Number(id));
-      } catch (conflicto) {
-        return res.status(conflicto.status || 409).json({
-          error: conflicto.message,
-          sugerencias: conflicto.sugerencias,
-        });
-      }
-    }
-
-    // Construir objeto actualización solo con campos válidos
     const dataToUpdate = {};
     if (nombre !== undefined) dataToUpdate.nombre = nombre;
-    if (tipoId !== undefined) dataToUpdate.tipoActividadId = tipoId;
+    if (tipo_actividad_id !== undefined) dataToUpdate.tipoActividadId = tipo_actividad_id;
     if (periodicidad !== undefined) dataToUpdate.periodicidad = periodicidad;
-    if (fechaInicio !== undefined) dataToUpdate.fechaInicio = fechaInicio ? new Date(fechaInicio) : null;
-    if (fechaFin !== undefined) dataToUpdate.fechaFin = fechaFin ? new Date(fechaFin) : null;
-    if (socioComunitarioId !== undefined) dataToUpdate.socioComunitarioId = socioComunitarioId;
-    if (proyectoId !== undefined) dataToUpdate.proyectoId = proyectoId;
+    if (fecha_inicio !== undefined) {
+      const inicio = new Date(fecha_inicio);
+      if (isNaN(inicio)) return res.status(400).json({ error: 'Fecha de inicio inválida' });
+      dataToUpdate.fechaInicio = inicio;
+    }
+    if (fecha_fin !== undefined) {
+      const fin = new Date(fecha_fin);
+      if (isNaN(fin)) return res.status(400).json({ error: 'Fecha de fin inválida' });
+      dataToUpdate.fechaFin = fin;
+    }
+    if (socio_comunitario_id !== undefined) dataToUpdate.socioComunitarioId = socio_comunitario_id;
+    if (proyecto_id !== undefined) dataToUpdate.proyectoId = proyecto_id || null;
     if (cupo !== undefined) dataToUpdate.cupo = cupo;
 
     const actividad = await prisma.actividad.update({
@@ -265,10 +137,7 @@ export async function update(req, res) {
       data: dataToUpdate,
     });
 
-    res.json({
-      message: 'Actividad actualizada exitosamente',
-      actividad,
-    });
+    res.json({ message: 'Actividad actualizada exitosamente', actividad });
   } catch (error) {
     console.error('Error al actualizar actividad:', error);
     res.status(500).json({ error: 'No se pudo actualizar la actividad', detalle: error.message });
