@@ -25,9 +25,7 @@ export function generarFechasCitas(fechaInicio, fechaFin, periodicidad) {
   return fechas;
 }
 
-// Función para validar conflictos de horario
 async function validarConflictosHorario(lugarId, fechas, horaInicio, horaFin, actividadIdExcluir = null) {
-  // Buscar citas que se solapen con el horario dado en esas fechas y lugar
   for (const fecha of fechas) {
     const citasConflictivas = await prisma.cita.findMany({
       where: {
@@ -37,7 +35,6 @@ async function validarConflictosHorario(lugarId, fechas, horaInicio, horaFin, ac
           { horaInicio: { lte: horaFin } },
           { horaFin: { gte: horaInicio } },
         ],
-        // Excluir citas de la actividad actual cuando se edita
         ...(actividadIdExcluir ? { actividadId: { not: actividadIdExcluir } } : {}),
       },
     });
@@ -47,13 +44,12 @@ async function validarConflictosHorario(lugarId, fechas, horaInicio, horaFin, ac
       throw {
         status: 409,
         message: `El lugar ${lugar?.nombre || lugarId} ya está ocupado el ${fecha.toLocaleDateString()} de ${horaInicio} a ${horaFin}`,
-        sugerencias: [], // Aquí podrías agregar sugerencias reales si quieres
+        sugerencias: [],
       };
     }
   }
 }
 
-// Obtener todas las actividades
 export async function getAll(req, res) {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -76,24 +72,37 @@ export async function getAll(req, res) {
   }
 }
 
-// Crear nueva actividad (con citas si es periódica)
 export async function create(req, res) {
   try {
+    // Recibo datos en snake_case y convierto a camelCase
     const {
       nombre,
-      tipoId,
-      periodicidadId,
-      fechaInicio,
-      fechaFin,
-      lugarId,
-      horaInicio,
-      horaFin,
+      tipo_actividad_id,
+      periodicidad,
+      fecha_inicio,
+      fecha_fin,
+      lugar_id,
+      hora_inicio,
+      hora_fin,
+      socio_comunitario_id,
+      proyecto_id,
+      cupo,
     } = req.body;
+
+    const tipoId = tipo_actividad_id;
+    const fechaInicio = fecha_inicio;
+    const fechaFin = fecha_fin;
+    const lugarId = lugar_id;
+    const horaInicio = hora_inicio;
+    const horaFin = hora_fin;
+    const socioComunitarioId = socio_comunitario_id;
+    const proyectoId = proyecto_id && proyecto_id !== '' ? proyecto_id : null;
 
     const errores = {};
     if (!nombre) errores.nombre = 'El campo nombre es obligatorio';
     if (!tipoId) errores.tipoId = 'El campo tipoId es obligatorio';
-    if (!periodicidadId) errores.periodicidadId = 'El campo periodicidadId es obligatorio';
+    if (!periodicidad) errores.periodicidad = 'El campo periodicidad es obligatorio';
+    if (!socioComunitarioId) errores.socioComunitarioId = 'El campo socioComunitarioId es obligatorio';
 
     const isPeriodica = fechaInicio && fechaFin;
     if (isPeriodica) {
@@ -117,14 +126,7 @@ export async function create(req, res) {
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    // Validar conflictos de horario antes de crear la actividad y citas
     if (isPeriodica) {
-      const mapPeriodicidad = { 1: 'diaria', 2: 'semanal', 3: 'mensual' };
-      const periodicidad = mapPeriodicidad[periodicidadId];
-      if (!periodicidad) {
-        return res.status(400).json({ error: 'Periodicidad no reconocida' });
-      }
-
       const fechas = generarFechasCitas(new Date(fechaInicio), new Date(fechaFin), periodicidad);
       try {
         await validarConflictosHorario(lugarId, fechas, horaInicio, horaFin);
@@ -139,19 +141,19 @@ export async function create(req, res) {
     const actividad = await prisma.actividad.create({
       data: {
         nombre,
-        tipoActividadId: tipoId,
-        periodicidadId,
-        fechaInicio: isPeriodica ? new Date(fechaInicio) : null,
-        fechaFin: isPeriodica ? new Date(fechaFin) : null,
-        creadoPorId: req.user.userId,
+        tipoActividad: { connect: { id: tipoId } },
+        periodicidad,
+        fechaInicio: new Date(fechaInicio),
+        fechaFin: fechaFin ? new Date(fechaFin) : null,
+        socioComunitario: { connect: { id: socioComunitarioId } },
+        proyecto: proyectoId ? { connect: { id: proyectoId } } : undefined,
+        cupo: cupo ?? undefined,
+        creadoPor: { connect: { id: req.user.userId } },
       },
     });
 
     if (isPeriodica) {
-      const mapPeriodicidad = { 1: 'diaria', 2: 'semanal', 3: 'mensual' };
-      const periodicidad = mapPeriodicidad[periodicidadId];
       const fechas = generarFechasCitas(new Date(fechaInicio), new Date(fechaFin), periodicidad);
-
       const citasData = fechas.map((fecha) => ({
         actividadId: actividad.id,
         lugarId,
@@ -168,11 +170,10 @@ export async function create(req, res) {
     res.status(201).json({ message: 'Actividad creada exitosamente', actividad });
   } catch (error) {
     console.error('Error al crear actividad:', error);
-    res.status(500).json({ error: 'Error al crear actividad' });
+    res.status(500).json({ error: 'Error al crear actividad', detalle: error.message });
   }
 }
 
-// Obtener actividad por ID
 export async function getById(req, res) {
   try {
     const { id } = req.params;
@@ -192,7 +193,6 @@ export async function getById(req, res) {
   }
 }
 
-// Actualizar actividad (con validación conflictos de horario)
 export async function update(req, res) {
   try {
     const { id } = req.params;
@@ -200,24 +200,42 @@ export async function update(req, res) {
       return res.status(400).json({ error: 'ID inválido' });
     }
 
+    // Recibo datos en snake_case y convierto a camelCase
     const {
       nombre,
-      tipoId,
-      periodicidadId,
-      fechaInicio,
-      fechaFin,
-      lugarId,
-      horaInicio,
-      horaFin,
+      tipo_actividad_id,
+      periodicidad,
+      fecha_inicio,
+      fecha_fin,
+      lugar_id,
+      hora_inicio,
+      hora_fin,
+      socio_comunitario_id,
+      proyecto_id,
+      cupo,
     } = req.body;
 
-    // Validaciones básicas de campos obligatorios en update si se envían
-    if (nombre !== undefined && nombre === '') 
+    const tipoId = tipo_actividad_id;
+    const fechaInicio = fecha_inicio;
+    const fechaFin = fecha_fin;
+    const lugarId = lugar_id;
+    const horaInicio = hora_inicio;
+    const horaFin = hora_fin;
+    const socioComunitarioId = socio_comunitario_id;
+    const proyectoId = proyecto_id && proyecto_id !== '' ? proyecto_id : null;
+
+    if (nombre !== undefined && nombre === '') {
       return res.status(400).json({ error: 'El campo nombre no puede estar vacío' });
-    if (tipoId !== undefined && !tipoId) 
+    }
+    if (tipoId !== undefined && !tipoId) {
       return res.status(400).json({ error: 'El campo tipoId es obligatorio si se envía' });
-    if (periodicidadId !== undefined && !periodicidadId) 
-      return res.status(400).json({ error: 'El campo periodicidadId es obligatorio si se envía' });
+    }
+    if (periodicidad !== undefined && !periodicidad) {
+      return res.status(400).json({ error: 'El campo periodicidad es obligatorio si se envía' });
+    }
+    if (socioComunitarioId !== undefined && !socioComunitarioId) {
+      return res.status(400).json({ error: 'El campo socioComunitarioId es obligatorio si se envía' });
+    }
 
     const isPeriodica = fechaInicio && fechaFin;
     if (isPeriodica) {
@@ -231,19 +249,9 @@ export async function update(req, res) {
       if (!horaInicio) return res.status(400).json({ error: 'Hora de inicio es obligatoria para actividad periódica' });
       if (!horaFin) return res.status(400).json({ error: 'Hora de fin es obligatoria para actividad periódica' });
       if (!lugarId) return res.status(400).json({ error: 'Lugar es obligatorio para actividad periódica' });
-    }
 
-    // Validar conflictos de horario antes de actualizar
-    if (isPeriodica) {
-      const mapPeriodicidad = { 1: 'diaria', 2: 'semanal', 3: 'mensual' };
-      const periodicidad = mapPeriodicidad[periodicidadId];
-      if (!periodicidad) {
-        return res.status(400).json({ error: 'Periodicidad no reconocida' });
-      }
-
-      const fechas = generarFechasCitas(new Date(fechaInicio), new Date(fechaFin), periodicidad);
       try {
-        await validarConflictosHorario(lugarId, fechas, horaInicio, horaFin, Number(id)); // Excluir citas propias
+        await validarConflictosHorario(lugarId, generarFechasCitas(new Date(fechaInicio), new Date(fechaFin), periodicidad), horaInicio, horaFin, Number(id));
       } catch (conflicto) {
         return res.status(conflicto.status || 409).json({
           error: conflicto.message,
@@ -252,14 +260,21 @@ export async function update(req, res) {
       }
     }
 
+    // Construir objeto actualización solo con campos válidos
+    const dataToUpdate = {};
+    if (nombre !== undefined) dataToUpdate.nombre = nombre;
+    if (tipoId !== undefined) dataToUpdate.tipoActividadId = tipoId;
+    if (periodicidad !== undefined) dataToUpdate.periodicidad = periodicidad;
+    if (fechaInicio !== undefined) dataToUpdate.fechaInicio = fechaInicio ? new Date(fechaInicio) : null;
+    if (fechaFin !== undefined) dataToUpdate.fechaFin = fechaFin ? new Date(fechaFin) : null;
+    if (socioComunitarioId !== undefined) dataToUpdate.socioComunitarioId = socioComunitarioId;
+    if (proyectoId !== undefined) dataToUpdate.proyectoId = proyectoId;
+    if (cupo !== undefined) dataToUpdate.cupo = cupo;
+
     const actividad = await prisma.actividad.update({
       where: { id: Number(id) },
-      data: req.body,
+      data: dataToUpdate,
     });
-
-    if (!actividad) {
-      return res.status(404).json({ error: 'No se pudo actualizar la actividad: no encontrada' });
-    }
 
     res.json({
       message: 'Actividad actualizada exitosamente',
@@ -267,11 +282,10 @@ export async function update(req, res) {
     });
   } catch (error) {
     console.error('Error al actualizar actividad:', error);
-    res.status(500).json({ error: 'No se pudo actualizar la actividad' });
+    res.status(500).json({ error: 'No se pudo actualizar la actividad', detalle: error.message });
   }
 }
 
-// Eliminar actividad
 export async function remove(req, res) {
   try {
     const { id } = req.params;
