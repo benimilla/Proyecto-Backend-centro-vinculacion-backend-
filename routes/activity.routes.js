@@ -11,4 +11,5 @@ router.put('/:id', auth, activityController.update);
 router.delete('/:id', auth, activityController.remove);
 
 console.log('activity.routes.js cargado');
-export { router };
+
+export default router;

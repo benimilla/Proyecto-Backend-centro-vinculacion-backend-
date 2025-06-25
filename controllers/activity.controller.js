@@ -39,27 +39,32 @@ export async function create(req, res) {
       horaFin,
     } = req.body;
 
-    if (!nombre || !tipoId || !periodicidadId) {
-      return res.status(400).json({ error: 'Faltan campos obligatorios: nombre, tipoId o periodicidadId' });
-    }
+    const errores = {};
 
-    // Validar fechas si es periódica
+    if (!nombre) errores.nombre = 'El campo nombre es obligatorio';
+    if (!tipoId) errores.tipoId = 'El campo tipoId es obligatorio';
+    if (!periodicidadId) errores.periodicidadId = 'El campo periodicidadId es obligatorio';
+
     const isPeriodica = fechaInicio && fechaFin;
     if (isPeriodica) {
       const inicio = new Date(fechaInicio);
       const fin = new Date(fechaFin);
 
-      if (isNaN(inicio) || isNaN(fin)) {
-        return res.status(400).json({ error: 'Fechas inválidas' });
-      }
+      if (isNaN(inicio)) errores.fechaInicio = 'Fecha de inicio inválida';
+      if (isNaN(fin)) errores.fechaFin = 'Fecha de fin inválida';
+      if (fin < inicio) errores.fechaFin = 'La fecha de fin no puede ser menor que la fecha de inicio';
 
-      if (fin < inicio) {
-        return res.status(400).json({ error: 'La fecha de fin no puede ser menor que la fecha de inicio' });
-      }
+      if (!horaInicio) errores.horaInicio = 'Hora de inicio es obligatoria para actividad periódica';
+      if (!horaFin) errores.horaFin = 'Hora de fin es obligatoria para actividad periódica';
+      if (!lugarId) errores.lugarId = 'Lugar es obligatorio para actividad periódica';
+    }
 
-      if (!horaInicio || !horaFin || !lugarId) {
-        return res.status(400).json({ error: 'Hora de inicio, hora de fin y lugar son obligatorios para actividades periódicas' });
-      }
+    if (Object.keys(errores).length > 0) {
+      return res.status(400).json({ errores });
+    }
+
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
     const actividad = await prisma.actividad.create({
@@ -73,7 +78,6 @@ export async function create(req, res) {
       },
     });
 
-    // Si es periódica, generar citas automáticamente
     if (isPeriodica) {
       const mapPeriodicidad = {
         1: 'diaria',
