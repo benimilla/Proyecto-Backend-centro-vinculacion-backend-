@@ -212,9 +212,12 @@ export async function update(req, res) {
     } = req.body;
 
     // Validaciones básicas de campos obligatorios en update si se envían
-    if (nombre !== undefined && nombre === '') return res.status(400).json({ error: 'El campo nombre no puede estar vacío' });
-    if (tipoId !== undefined && !tipoId) return res.status(400).json({ error: 'El campo tipoId es obligatorio si se envía' });
-    if (periodicidadId !== undefined && !periodicidadId) return res.status(400).json({ error: 'El campo periodicidadId es obligatorio si se envía' });
+    if (nombre !== undefined && nombre === '') 
+      return res.status(400).json({ error: 'El campo nombre no puede estar vacío' });
+    if (tipoId !== undefined && !tipoId) 
+      return res.status(400).json({ error: 'El campo tipoId es obligatorio si se envía' });
+    if (periodicidadId !== undefined && !periodicidadId) 
+      return res.status(400).json({ error: 'El campo periodicidadId es obligatorio si se envía' });
 
     const isPeriodica = fechaInicio && fechaFin;
     if (isPeriodica) {
@@ -240,7 +243,7 @@ export async function update(req, res) {
 
       const fechas = generarFechasCitas(new Date(fechaInicio), new Date(fechaFin), periodicidad);
       try {
-        await validarConflictosHorario(lugarId, fechas, horaInicio, horaFin, Number(id)); // Excluir citas de esta actividad al validar
+        await validarConflictosHorario(lugarId, fechas, horaInicio, horaFin, Number(id)); // Excluir citas propias
       } catch (conflicto) {
         return res.status(conflicto.status || 409).json({
           error: conflicto.message,
@@ -254,10 +257,17 @@ export async function update(req, res) {
       data: req.body,
     });
 
-    res.json(actividad);
+    if (!actividad) {
+      return res.status(404).json({ error: 'No se pudo actualizar la actividad: no encontrada' });
+    }
+
+    res.json({
+      message: 'Actividad actualizada exitosamente',
+      actividad,
+    });
   } catch (error) {
     console.error('Error al actualizar actividad:', error);
-    res.status(500).json({ error: 'Error al actualizar actividad' });
+    res.status(500).json({ error: 'No se pudo actualizar la actividad' });
   }
 }
 
