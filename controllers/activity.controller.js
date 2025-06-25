@@ -10,15 +10,12 @@ export async function getAll(req, res) {
       skip,
       take: pageSize,
       orderBy: { fechaInicio: 'desc' },
-      include: { citas: true, archivos: true },
     });
 
-    const totalCount = await prisma.actividad.count();
-
-    res.json({ page, pageSize, totalCount, actividades });
+    res.json(actividades);
   } catch (error) {
-    console.error('Error al obtener actividades:', error);
-    res.status(500).json({ error: 'Error al obtener actividades' });
+    console.error(error);
+    res.status(500).json({ error: 'Error al obtener las actividades' });
   }
 }
 
