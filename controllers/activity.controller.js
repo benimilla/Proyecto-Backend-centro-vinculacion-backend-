@@ -1,56 +1,110 @@
 import { prisma } from '../config/db.js';
 
-// Crear nueva actividad
+export function generarFechasCitas(fechaInicio, fechaFin, periodicidad) {
+  const fechas = [];
+  let fechaActual = new Date(fechaInicio);
+
+  while (fechaActual <= fechaFin) {
+    fechas.push(new Date(fechaActual));
+
+    switch (periodicidad) {
+      case 'diaria':
+        fechaActual.setDate(fechaActual.getDate() + 1);
+        break;
+      case 'semanal':
+        fechaActual.setDate(fechaActual.getDate() + 7);
+        break;
+      case 'mensual':
+        fechaActual.setMonth(fechaActual.getMonth() + 1);
+        break;
+      default:
+        throw new Error('Periodicidad no soportada');
+    }
+  }
+
+  return fechas;
+}
+
+// Crear nueva actividad (con citas si es periódica)
 export async function create(req, res) {
   try {
-    if (!req.user?.userId) {
-      return res.status(401).json({ error: 'Usuario no autenticado' });
-    }
-
     const {
       nombre,
       tipoId,
-      periodicidadId
-      // otros campos que consideres obligatorios
+      periodicidadId,
+      fechaInicio,
+      fechaFin,
+      lugarId,
+      horaInicio,
+      horaFin,
     } = req.body;
 
-    // Validación básica
-    if (!nombre) return res.status(400).json({ error: 'El campo nombre es obligatorio' });
-    if (!tipoId) return res.status(400).json({ error: 'El campo tipoId es obligatorio' });
-    if (!periodicidadId) return res.status(400).json({ error: 'El campo periodicidadId es obligatorio' });
-    // Puedes validar más campos según tu modelo
+    if (!nombre || !tipoId || !periodicidadId) {
+      return res.status(400).json({ error: 'Faltan campos obligatorios: nombre, tipoId o periodicidadId' });
+    }
 
-    const data = {
-      ...req.body,
-      creadoPor: req.user.userId
-    };
+    // Validar fechas si es periódica
+    const isPeriodica = fechaInicio && fechaFin;
+    if (isPeriodica) {
+      const inicio = new Date(fechaInicio);
+      const fin = new Date(fechaFin);
 
-    const actividad = await prisma.actividad.create({ data });
+      if (isNaN(inicio) || isNaN(fin)) {
+        return res.status(400).json({ error: 'Fechas inválidas' });
+      }
 
-    res.status(201).json(actividad);
+      if (fin < inicio) {
+        return res.status(400).json({ error: 'La fecha de fin no puede ser menor que la fecha de inicio' });
+      }
+
+      if (!horaInicio || !horaFin || !lugarId) {
+        return res.status(400).json({ error: 'Hora de inicio, hora de fin y lugar son obligatorios para actividades periódicas' });
+      }
+    }
+
+    const actividad = await prisma.actividad.create({
+      data: {
+        nombre,
+        tipoActividadId: tipoId,
+        periodicidadId,
+        fechaInicio: isPeriodica ? new Date(fechaInicio) : null,
+        fechaFin: isPeriodica ? new Date(fechaFin) : null,
+        creadoPorId: req.user.userId,
+      },
+    });
+
+    // Si es periódica, generar citas automáticamente
+    if (isPeriodica) {
+      const mapPeriodicidad = {
+        1: 'diaria',
+        2: 'semanal',
+        3: 'mensual',
+      };
+
+      const periodicidad = mapPeriodicidad[periodicidadId];
+      if (!periodicidad) {
+        return res.status(400).json({ error: 'Periodicidad no reconocida' });
+      }
+
+      const fechas = generarFechasCitas(new Date(fechaInicio), new Date(fechaFin), periodicidad);
+
+      const citasData = fechas.map((fecha) => ({
+        actividadId: actividad.id,
+        lugarId,
+        fecha,
+        horaInicio,
+        horaFin,
+        estado: 'Programada',
+        creadoPorId: req.user.userId,
+      }));
+
+      await prisma.cita.createMany({ data: citasData });
+    }
+
+    res.status(201).json({ message: 'Actividad creada exitosamente', actividad });
   } catch (error) {
     console.error('Error al crear actividad:', error);
-
-    // Manejar errores de Prisma para campos faltantes o inválidos
-    if (error.code === 'P2002') {
-      return res.status(409).json({ error: 'Datos duplicados o conflicto' });
-    }
-    // Podrías agregar más códigos de error específicos
-
     res.status(500).json({ error: 'Error al crear actividad' });
-  }
-}
-
-// Obtener todas las actividades
-export async function getAll(req, res) {
-  try {
-    const actividades = await prisma.actividad.findMany({
-      include: { citas: true, archivos: true }
-    });
-    res.json(actividades);
-  } catch (error) {
-    console.error('Error al obtener actividades:', error);
-    res.status(500).json({ error: 'Error al obtener actividades' });
   }
 }
 
