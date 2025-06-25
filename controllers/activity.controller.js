@@ -126,6 +126,7 @@ export async function create(req, res) {
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
+    // Validar conflictos pero sin crear citas
     if (isPeriodica) {
       const fechas = generarFechasCitas(new Date(fechaInicio), new Date(fechaFin), periodicidad);
       try {
@@ -152,20 +153,7 @@ export async function create(req, res) {
       },
     });
 
-    if (isPeriodica) {
-      const fechas = generarFechasCitas(new Date(fechaInicio), new Date(fechaFin), periodicidad);
-      const citasData = fechas.map((fecha) => ({
-        actividadId: actividad.id,
-        lugarId,
-        fecha,
-        horaInicio,
-        horaFin,
-        estado: 'Programada',
-        creadoPorId: req.user.userId,
-      }));
-
-      await prisma.cita.createMany({ data: citasData });
-    }
+    // No se crean citas automáticamente
 
     res.status(201).json({ message: 'Actividad creada exitosamente', actividad });
   } catch (error) {
@@ -173,6 +161,7 @@ export async function create(req, res) {
     res.status(500).json({ error: 'Error al crear actividad', detalle: error.message });
   }
 }
+
 
 export async function getById(req, res) {
   try {
