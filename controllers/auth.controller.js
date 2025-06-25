@@ -21,19 +21,16 @@ export async function register(req, res) {
       data: {
         nombre,
         email,
-        password: hashed,
-        rol: 'USER',
-        permisos: {} // si lo tienes así en tu esquema
+        password: hashed
       }
     });
 
-    const token = signToken({ userId: usuario.id, role: usuario.rol });
+    const token = signToken({ userId: usuario.id }); // sin rol
     res.status(201).json({ usuario, token });
   } catch (error) {
     res.status(500).json({ error: 'Error al registrar usuario', detalle: error.message });
   }
 }
-
 
 export async function login(req, res) {
   try {
@@ -45,7 +42,7 @@ export async function login(req, res) {
     const valid = await bcrypt.compare(password, usuario.password);
     if (!valid) return res.status(401).json({ error: 'Credenciales inválidas' });
 
-    const token = signToken({ userId: usuario.id, role: usuario.rol });
+    const token = signToken({ userId: usuario.id }); // sin rol
     res.json({ usuario, token });
 
   } catch (error) {
@@ -54,34 +51,38 @@ export async function login(req, res) {
 }
 
 export async function forgotPassword(req, res) {
-  const { email } = req.body;
-  const usuario = await prisma.usuario.findUnique({ where: { email } });
+  try {
+    const { email } = req.body;
+    const usuario = await prisma.usuario.findUnique({ where: { email } });
 
-  if (!usuario) {
-    // Aquí devuelves el mensaje solicitado y código 404
-    return res.status(404).json({ error: 'El correo no está registrado' });
-  }
-
-  // Si el usuario existe, sigue con la lógica de generación de token, envío de email, etc.
-  const token = crypto.randomBytes(32).toString('hex');
-  const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
-
-  await prisma.usuario.update({
-    where: { email },
-    data: {
-      resetToken: token,
-      resetTokenExp: expires,
+    if (!usuario) {
+      return res.status(404).json({ error: 'El correo no está registrado' });
     }
-  });
 
-  const link = `${process.env.FRONTEND_URL}/reset-password?token=${token}&email=${email}`;
-  await sendMail({
-    to: email,
-    subject: 'Recuperación de contraseña',
-    html: `<p>Haz clic <a href="${link}">aquí</a> para recuperar tu contraseña.</p>`,
-  });
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
 
-  res.json({ message: 'Instrucciones enviadas al correo.' });
+    await prisma.usuario.update({
+      where: { email },
+      data: {
+        tokenRecuperacion: token,
+        tokenExpiracion: expires
+      }
+    });
+
+    const link = `${FRONTEND_URL}/reset-password?token=${token}&email=${email}`;
+    await sendMail({
+      to: email,
+      subject: 'Recuperación de contraseña',
+      html: `<p>Haz clic <a href="${link}">aquí</a> para recuperar tu contraseña.</p>`,
+    });
+
+    res.json({ message: 'Instrucciones enviadas al correo.' });
+
+  } catch (error) {
+    console.error('Error en forgotPassword:', error);
+    res.status(500).json({ error: 'Error al procesar recuperación de contraseña', detalle: error.message });
+  }
 }
 
 export async function resetPassword(req, res) {
@@ -89,7 +90,8 @@ export async function resetPassword(req, res) {
     const { email, token, newPassword } = req.body;
 
     const usuario = await prisma.usuario.findUnique({ where: { email } });
-    if (!usuario || usuario.resetToken !== token || new Date() > usuario.resetTokenExp) {
+
+    if (!usuario || usuario.tokenRecuperacion !== token || new Date() > usuario.tokenExpiracion) {
       return res.status(400).json({ error: 'Token inválido o expirado' });
     }
 
@@ -98,14 +100,15 @@ export async function resetPassword(req, res) {
       where: { email },
       data: {
         password: hashed,
-        resetToken: null,
-        resetTokenExp: null
+        tokenRecuperacion: null,
+        tokenExpiracion: null
       }
     });
 
     res.json({ message: 'Contraseña actualizada correctamente.' });
 
   } catch (error) {
+    console.error('Error en resetPassword:', error);
     res.status(500).json({ error: 'Error al actualizar contraseña', detalle: error.message });
   }
 }

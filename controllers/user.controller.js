@@ -33,6 +33,12 @@ export async function create(req, res) {
       return res.status(400).json({ error: 'Nombre, email y password son obligatorios' });
     }
 
+    // Opcional: validar email único manualmente
+    const existente = await prisma.usuario.findUnique({ where: { email } });
+    if (existente) {
+      return res.status(400).json({ error: 'El email ya está registrado' });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const usuario = await prisma.usuario.create({
@@ -45,7 +51,7 @@ export async function create(req, res) {
 
     res.status(201).json(usuario);
   } catch (error) {
-    console.error('Error al crear usuario:', error);
+    console.error('Error al registrar usuario:', error);
     res.status(500).json({ error: 'Error al registrar usuario', detalle: error.message });
   }
 }
@@ -56,7 +62,6 @@ export async function update(req, res) {
     const data = req.body;
 
     if (data.password) {
-      // Si se actualiza password, hashéalo
       data.password = await bcrypt.hash(data.password, 10);
     }
 
@@ -64,10 +69,11 @@ export async function update(req, res) {
       where: { id: Number(id) },
       data
     });
+
     res.json(usuario);
   } catch (error) {
     console.error('Error al actualizar usuario:', error);
-    res.status(500).json({ error: 'Error al actualizar usuario' });
+    res.status(500).json({ error: 'Error al actualizar usuario', detalle: error.message });
   }
 }
 
