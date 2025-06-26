@@ -12,7 +12,7 @@ import { auth } from './middlewares/auth.middleware.js';
 import { router as authRoutes } from './routes/auth.routes.js';
 import { router as userRoutes } from './routes/user.routes.js';
 import { router as activityRoutes } from './routes/activity.routes.js';
-import { router as appointmentRoutes } from './routes/appointment.routes.js';
+import { router as appointmentRoutes } from './routes/appointment.routes.js'; // <-- cita
 import { router as fileRoutes } from './routes/file.routes.js';
 import { router as maintenanceRoutes } from './routes/maintenance.routes.js';
 
@@ -37,7 +37,7 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // para requests sin origin (Postman)
+    if (!origin) return callback(null, true);
     if (!allowedOrigins.includes(origin)) {
       return callback(new Error('La política de CORS no permite este origen.'), false);
     }
@@ -46,7 +46,6 @@ app.use(cors({
   credentials: true,
 }));
 
-// Seguridad y parsing
 app.use(helmet());
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
 app.use(express.json());
@@ -62,7 +61,7 @@ app.use(auth);
 // Rutas protegidas
 app.use('/api/users', userRoutes);
 app.use('/api/activities', activityRoutes);
-app.use('/api/appointments', appointmentRoutes);
+app.use('/api/appointments', appointmentRoutes);  // <-- aquí se usa el controlador y rutas de cita
 app.use('/api/files', fileRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 
@@ -84,7 +83,6 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.message || 'Error interno del servidor' });
 });
 
-// Iniciar servidor
 app.listen(PORT, () => {
   console.log(`✅ Servidor corriendo en puerto ${PORT}`);
 });

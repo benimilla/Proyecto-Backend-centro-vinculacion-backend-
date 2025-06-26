@@ -1,138 +1,150 @@
-import { prisma } from '../config/db.js';
+// cita.controller.js
+import { PrismaClient } from '@prisma/client';
 
-// Crear nueva cita
-export async function create(req, res) {
+const prisma = new PrismaClient();
+
+// Crear una nueva cita
+export const crearCita = async (req, res) => {
   try {
-    if (!req.user?.userId) {
-      return res.status(401).json({ error: 'Usuario no autenticado' });
-    }
-
     const {
       actividadId,
       lugarId,
       fecha,
       horaInicio,
       horaFin,
-      estado,
-      motivoCancelacion
+      creadoPorId,
     } = req.body;
 
-    // Validaciones básicas
-    if (!actividadId) return res.status(400).json({ error: 'actividadId es obligatorio' });
-    if (!lugarId) return res.status(400).json({ error: 'lugarId es obligatorio' });
-    if (!fecha) return res.status(400).json({ error: 'fecha es obligatorio' });
-    if (!horaInicio) return res.status(400).json({ error: 'horaInicio es obligatorio' });
+    const nuevaCita = await prisma.cita.create({
+      data: {
+        actividadId,
+        lugarId,
+        fecha: new Date(fecha),
+        horaInicio,
+        horaFin,
+        creadoPorId,
+      },
+    });
 
-    const data = {
-      actividadId,
-      lugarId,
-      fecha: new Date(fecha), // Asegura que sea Date
-      horaInicio,
-      horaFin,
-      estado: estado || 'Programada',
-      motivoCancelacion,
-      creadoPorId: req.user.userId
-    };
-
-    const cita = await prisma.cita.create({ data });
-
-    res.status(201).json(cita);
+    res.status(201).json(nuevaCita);
   } catch (error) {
-    console.error('Error al crear cita:', error);
-    res.status(500).json({ error: 'Error al crear cita' });
+    console.error('Error creando cita:', error);
+    res.status(500).json({ mensaje: 'Error creando cita' });
   }
-}
+};
 
 // Obtener todas las citas
-export async function getAll(req, res) {
+export const obtenerCitas = async (req, res) => {
   try {
     const citas = await prisma.cita.findMany({
       include: {
         actividad: true,
         lugar: true,
-        creadoPor: {
-          select: { id: true, nombre: true, email: true }
-        }
-      }
+        creadoPor: true,
+      },
     });
     res.json(citas);
   } catch (error) {
-    console.error('Error al obtener citas:', error);
-    res.status(500).json({ error: 'Error al obtener citas' });
+    console.error('Error obteniendo citas:', error);
+    res.status(500).json({ mensaje: 'Error obteniendo citas' });
   }
-}
+};
 
-// Obtener cita por ID
-export async function getById(req, res) {
+// Obtener una cita por ID
+export const obtenerCitaPorId = async (req, res) => {
+  const { id } = req.params;
   try {
-    const { id } = req.params;
     const cita = await prisma.cita.findUnique({
       where: { id: Number(id) },
       include: {
         actividad: true,
         lugar: true,
-        creadoPor: {
-          select: { id: true, nombre: true, email: true }
-        }
-      }
+        creadoPor: true,
+      },
     });
 
-    if (!cita) return res.status(404).json({ error: 'Cita no encontrada' });
-
-    res.json(cita);
-  } catch (error) {
-    console.error('Error al obtener cita:', error);
-    res.status(500).json({ error: 'Error al obtener cita' });
-  }
-}
-
-// Actualizar cita
-export async function update(req, res) {
-  try {
-    const { id } = req.params;
-    const {
-      actividadId,
-      lugarId,
-      fecha,
-      horaInicio,
-      horaFin,
-      estado,
-      motivoCancelacion
-    } = req.body;
-
-    if (isNaN(Number(id))) {
-      return res.status(400).json({ error: 'ID inválido' });
+    if (!cita) {
+      return res.status(404).json({ mensaje: 'Cita no encontrada' });
     }
 
-    const data = {};
-    if (actividadId !== undefined) data.actividadId = actividadId;
-    if (lugarId !== undefined) data.lugarId = lugarId;
-    if (fecha !== undefined) data.fecha = new Date(fecha);
-    if (horaInicio !== undefined) data.horaInicio = horaInicio;
-    if (horaFin !== undefined) data.horaFin = horaFin;
-    if (estado !== undefined) data.estado = estado;
-    if (motivoCancelacion !== undefined) data.motivoCancelacion = motivoCancelacion;
-
-    const cita = await prisma.cita.update({
-      where: { id: Number(id) },
-      data
-    });
-
     res.json(cita);
   } catch (error) {
-    console.error('Error al actualizar cita:', error);
-    res.status(500).json({ error: 'Error al actualizar cita' });
+    console.error('Error obteniendo cita:', error);
+    res.status(500).json({ mensaje: 'Error obteniendo cita' });
   }
-}
+};
 
-// Eliminar cita
-export async function remove(req, res) {
+// Actualizar cita
+export const actualizarCita = async (req, res) => {
+  const { id } = req.params;
+  const {
+    actividadId,
+    lugarId,
+    fecha,
+    horaInicio,
+    horaFin,
+    estado,
+    motivoCancelacion,
+  } = req.body;
+
   try {
-    const { id } = req.params;
-    await prisma.cita.delete({ where: { id: Number(id) } });
-    res.status(204).end();
+    const citaActualizada = await prisma.cita.update({
+      where: { id: Number(id) },
+      data: {
+        actividadId,
+        lugarId,
+        fecha: fecha ? new Date(fecha) : undefined,
+        horaInicio,
+        horaFin,
+        estado,
+        motivoCancelacion,
+      },
+    });
+
+    res.json(citaActualizada);
   } catch (error) {
-    console.error('Error al eliminar cita:', error);
-    res.status(500).json({ error: 'Error al eliminar cita' });
+    console.error('Error actualizando cita:', error);
+    res.status(500).json({ mensaje: 'Error actualizando cita' });
   }
-}
+};
+
+// Cancelar cita (cambiar estado y añadir motivo)
+export const cancelarCita = async (req, res) => {
+  const { id } = req.params;
+  const { motivoCancelacion } = req.body;
+
+  if (!motivoCancelacion) {
+    return res.status(400).json({ mensaje: 'Debe proporcionar un motivo para la cancelación' });
+  }
+
+  try {
+    const citaCancelada = await prisma.cita.update({
+      where: { id: Number(id) },
+      data: {
+        estado: 'Cancelada',
+        motivoCancelacion,
+      },
+    });
+
+    res.json({ mensaje: 'Cita cancelada exitosamente', cita: citaCancelada });
+  } catch (error) {
+    console.error('Error cancelando cita:', error);
+    res.status(500).json({ mensaje: 'Error cancelando cita' });
+  }
+};
+
+// Eliminar cita (opcional)
+export const eliminarCita = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    await prisma.cita.delete({
+      where: { id: Number(id) },
+    });
+
+    res.json({ mensaje: 'Cita eliminada exitosamente' });
+  } catch (error) {
+    console.error('Error eliminando cita:', error);
+    res.status(500).json({ mensaje: 'Error eliminando cita' });
+  }
+};

@@ -2,13 +2,24 @@ import express from 'express';
 import * as citaController from '../controllers/cita.controller.js';
 import { auth } from '../middlewares/auth.middleware.js';
 
-const router = express.Router();
+export const router = express.Router();
 
-router.get('/', auth, citaController.getAll);
-router.post('/', auth, citaController.create);
-router.get('/:id', auth, citaController.getById);
-router.put('/:id', auth, citaController.update);
-router.delete('/:id', auth, citaController.remove);
+// Obtener todas las citas
+router.get('/', auth, citaController.obtenerCitas);
+
+// Obtener cita por ID
+router.get('/:id', auth, citaController.obtenerCitaPorId);
+
+// Crear nueva cita
+router.post('/', auth, citaController.crearCita);
+
+// Actualizar cita por ID
+router.put('/:id', auth, citaController.actualizarCita);
+
+// Cancelar cita (proporcionando motivo)
+router.put('/:id/cancelar', auth, citaController.cancelarCita);
+
+// Eliminar cita por ID
+router.delete('/:id', auth, citaController.eliminarCita);
 
 console.log('cita.routes.js cargado');
-export { router };
