@@ -10,4 +10,7 @@ router.get('/:id', auth, activityController.getById);
 router.put('/:id', auth, activityController.update);
 router.delete('/:id', auth, activityController.remove);
 
+// Nueva ruta para cancelar actividad
+router.post('/:id/cancelar', auth, activityController.cancel);
+
 console.log('activity.routes.js cargado');
