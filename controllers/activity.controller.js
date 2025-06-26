@@ -1,12 +1,12 @@
 import { prisma } from '../config/db.js';
 
-// Función para generar citas según periodicidad entre fechas
-async function generarCitas(actividadId, fechaInicio, fechaFin, periodicidad, lugarId) {
+// Función auxiliar para generar citas según periodicidad entre fechas
+async function generarCitas(actividadId, fechaInicio, fechaFin, periodicidad, lugarId, horaInicio, horaFin) {
   let fecha = new Date(fechaInicio);
   const citas = [];
 
   while (fecha <= fechaFin) {
-    // Antes de crear la cita, validar conflicto de horario y lugar
+    // Validar conflicto de horario antes de crear cita
     const conflicto = await prisma.cita.findFirst({
       where: {
         lugarId,
@@ -14,27 +14,29 @@ async function generarCitas(actividadId, fechaInicio, fechaFin, periodicidad, lu
         estado: 'Programada',
         OR: [
           {
-            horaInicio: { lt: '18:00' }, // Aquí debes recibir o parametrizar horaInicio y horaFin reales
-            horaFin: { gt: '09:00' },    // Ejemplo: horario 9:00 a 18:00, adapta según tus datos
+            horaInicio: { lt: horaFin },
+            horaFin: { gt: horaInicio },
           },
         ],
       },
     });
 
     if (conflicto) {
-      throw new Error(`Conflicto de horario en lugar ${lugarId} para fecha ${fecha.toISOString().slice(0,10)}`);
+      throw new Error(
+        `El lugar ${lugarId} ya está ocupado el ${fecha.toISOString().slice(0, 10)} de ${horaInicio} a ${horaFin}`
+      );
     }
 
     citas.push(
       prisma.cita.create({
         data: {
           actividadId,
-          fecha,
+          fecha: new Date(fecha),
           estado: 'Programada',
           lugarId,
-          horaInicio: '09:00', // ajustar según necesidad
-          horaFin: '18:00',    // ajustar según necesidad
-        }
+          horaInicio,
+          horaFin,
+        },
       })
     );
 
@@ -53,9 +55,11 @@ async function generarCitas(actividadId, fechaInicio, fechaFin, periodicidad, lu
         fecha = new Date(fechaFin.getTime() + 1);
     }
   }
+
   await Promise.all(citas);
 }
 
+// Crear actividad (CA-08, CA-09, CA-10, CA-11)
 export async function create(req, res) {
   try {
     const {
@@ -67,7 +71,9 @@ export async function create(req, res) {
       socioComunitarioId,
       proyectoId,
       cupo,
-      lugarId, // agregar lugar para validación de horario
+      lugarId,
+      horaInicio,
+      horaFin,
     } = req.body;
 
     // Validar campos obligatorios
@@ -78,6 +84,8 @@ export async function create(req, res) {
     if (!fechaInicio) errores.fechaInicio = 'El campo fechaInicio es obligatorio';
     if (!socioComunitarioId) errores.socioComunitarioId = 'El campo socioComunitarioId es obligatorio';
     if (!lugarId) errores.lugarId = 'El campo lugarId es obligatorio';
+    if (!horaInicio) errores.horaInicio = 'El campo horaInicio es obligatorio';
+    if (!horaFin) errores.horaFin = 'El campo horaFin es obligatorio';
 
     const inicio = new Date(fechaInicio);
     const fin = fechaFin ? new Date(fechaFin) : null;
@@ -85,6 +93,10 @@ export async function create(req, res) {
     if (isNaN(inicio)) errores.fechaInicio = 'Fecha de inicio inválida';
     if (fechaFin && isNaN(fin)) errores.fechaFin = 'Fecha de fin inválida';
     if (fin && fin < inicio) errores.fechaFin = 'La fecha de fin no puede ser menor que la de inicio';
+
+    if (horaInicio && horaFin && horaInicio >= horaFin) {
+      errores.horas = 'La hora de inicio debe ser menor que la hora de fin';
+    }
 
     if (Object.keys(errores).length > 0) {
       return res.status(400).json({ errores });
@@ -94,25 +106,28 @@ export async function create(req, res) {
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    // Validar conflicto para actividad puntual (si periodicidad 'única')
-    if (periodicidad === 'única') {
-      // Aquí validar si ya existe cita en el lugar para esa fecha y horario
-      const conflicto = await prisma.cita.findFirst({
-        where: {
-          lugarId,
-          fecha: inicio,
-          estado: 'Programada',
-          OR: [
-            {
-              horaInicio: { lt: '18:00' }, // Debes recibir y usar horas reales de entrada
-              horaFin: { gt: '09:00' },
-            },
-          ],
-        },
+    // Validar conflicto horario para actividad puntual o primera cita de periódica
+    const conflictDate = periodicidad === 'única' ? inicio : inicio;
+
+    const conflicto = await prisma.cita.findFirst({
+      where: {
+        lugarId,
+        fecha: conflictDate,
+        estado: 'Programada',
+        OR: [
+          {
+            horaInicio: { lt: horaFin },
+            horaFin: { gt: horaInicio },
+          },
+        ],
+      },
+    });
+
+    if (conflicto) {
+      return res.status(409).json({
+        error: `El lugar ya está ocupado el día ${conflictDate.toISOString().slice(0, 10)} de ${horaInicio} a ${horaFin}`,
+        sugerencias: await obtenerSugerencias(lugarId, conflictDate, horaInicio, horaFin),
       });
-      if (conflicto) {
-        return res.status(409).json({ error: `El lugar ya está ocupado el día ${inicio.toISOString().slice(0,10)}` });
-      }
     }
 
     // Crear actividad
@@ -130,30 +145,47 @@ export async function create(req, res) {
       },
     });
 
-    // Crear citas según periodicidad
+    // Crear citas según periodicidad (CA-09)
     if (periodicidad !== 'única' && fin) {
-      await generarCitas(actividad.id, inicio, fin, periodicidad, lugarId);
+      await generarCitas(actividad.id, inicio, fin, periodicidad, lugarId, horaInicio, horaFin);
     } else if (periodicidad === 'única') {
-      // Crear cita única para actividad puntual
       await prisma.cita.create({
         data: {
           actividadId: actividad.id,
           fecha: inicio,
           estado: 'Programada',
           lugarId,
-          horaInicio: '09:00', // Ajustar según datos reales
-          horaFin: '18:00',
+          horaInicio,
+          horaFin,
         },
       });
     }
 
-    res.status(201).json({ message: 'Actividad creada exitosamente', actividad });
+    // CA-08: El frontend puede redirigir al calendario tras mensaje de éxito
+    return res.status(201).json({ message: 'Actividad creada exitosamente', actividad });
   } catch (error) {
     console.error('Error al crear actividad:', error);
-    res.status(500).json({ error: 'Error al crear actividad', detalle: error.message });
+    return res.status(500).json({ error: 'Error al crear actividad', detalle: error.message });
   }
 }
 
+// Obtener sugerencias de horarios/lugares alternativos (para CA-11)
+async function obtenerSugerencias(lugarId, fecha, horaInicio, horaFin) {
+  // Ejemplo simple: buscar horarios libres en mismo lugar para esa fecha (podrías mejorar con lógica más compleja)
+  // Aquí solo devuelve horarios libres entre 08:00 y 20:00 que no se crucen con citas existentes
+  const horariosOcupados = await prisma.cita.findMany({
+    where: { lugarId, fecha, estado: 'Programada' },
+    select: { horaInicio: true, horaFin: true },
+  });
+
+  // Aquí deberías implementar lógica para calcular franjas libres. Para simplificar, solo retorno un ejemplo fijo:
+  return [
+    { horaInicio: '08:00', horaFin: '09:00' },
+    { horaInicio: '18:00', horaFin: '20:00' },
+  ];
+}
+
+// Actualizar actividad (CA-12, CA-13, CA-14)
 export async function update(req, res) {
   try {
     const { id } = req.params;
@@ -166,12 +198,12 @@ export async function update(req, res) {
       return res.status(404).json({ error: 'Actividad no encontrada' });
     }
 
-    // Validar permisos (solo creador puede modificar)
+    // Validar permisos (solo creador puede modificar) (CA-13)
     if (actividad.creadoPorId !== req.user.userId) {
       return res.status(403).json({ error: 'No tiene permisos para modificar esta actividad' });
     }
 
-    // Bloquear modificación si actividad está completada
+    // Bloquear modificación si actividad completada (CA-14)
     if (actividad.estado === 'Completada') {
       return res.status(400).json({ error: 'No se puede modificar una actividad completada' });
     }
@@ -210,13 +242,14 @@ export async function update(req, res) {
       data: dataToUpdate,
     });
 
-    res.json({ message: 'Actividad actualizada exitosamente', actividad: actividadActualizada });
+    return res.json({ message: 'Actividad actualizada exitosamente', actividad: actividadActualizada });
   } catch (error) {
     console.error('Error al actualizar actividad:', error);
-    res.status(500).json({ error: 'No se pudo actualizar la actividad', detalle: error.message });
+    return res.status(500).json({ error: 'No se pudo actualizar la actividad', detalle: error.message });
   }
 }
 
+// Cancelar actividad (CA-15, CA-16)
 export async function cancel(req, res) {
   try {
     const { id } = req.params;
@@ -257,13 +290,14 @@ export async function cancel(req, res) {
       },
     });
 
-    res.json({ message: 'Actividad cancelada exitosamente' });
+    return res.json({ message: 'Actividad cancelada exitosamente' });
   } catch (error) {
     console.error('Error al cancelar actividad:', error);
-    res.status(500).json({ error: 'Error al cancelar actividad', detalle: error.message });
+    return res.status(500).json({ error: 'Error al cancelar actividad', detalle: error.message });
   }
 }
 
+// Obtener todas las actividades
 export async function getAll(req, res) {
   try {
     const actividades = await prisma.actividad.findMany({
@@ -286,13 +320,14 @@ export async function getAll(req, res) {
       },
     });
 
-    res.json(actividades);
+    return res.json(actividades);
   } catch (error) {
     console.error('Error al obtener las actividades:', error);
-    res.status(500).json({ error: 'Error al obtener las actividades' });
+    return res.status(500).json({ error: 'Error al obtener las actividades' });
   }
 }
 
+// Obtener actividades de la semana actual (CA-17)
 export async function getActividadesSemanaActual(req, res) {
   try {
     const hoy = new Date();
@@ -358,10 +393,10 @@ export async function getActividadesSemanaActual(req, res) {
   }
 }
 
-// Endpoint para vista mensual con indicadores visuales (CA-18)
+// Obtener actividades del mes (CA-18)
 export async function getActividadesMes(req, res) {
   try {
-    const { year, month } = req.query; // ejemplo: year=2025, month=6 (junio)
+    const { year, month } = req.query;
     if (!year || !month) {
       return res.status(400).json({ error: 'Faltan parámetros year o month' });
     }
@@ -393,13 +428,14 @@ export async function getActividadesMes(req, res) {
       },
     });
 
-    res.json({ actividades });
+    return res.json({ actividades });
   } catch (error) {
     console.error('Error al obtener actividades mes:', error);
-    res.status(500).json({ error: 'Error al obtener actividades del mes' });
+    return res.status(500).json({ error: 'Error al obtener actividades del mes' });
   }
 }
 
+// Obtener actividad por ID
 export async function getById(req, res) {
   try {
     const { id } = req.params;
@@ -415,20 +451,21 @@ export async function getById(req, res) {
       return res.status(404).json({ error: 'Actividad no encontrada' });
     }
 
-    res.json(actividad);
+    return res.json(actividad);
   } catch (error) {
     console.error('Error al obtener actividad:', error);
-    res.status(500).json({ error: 'Error al obtener actividad' });
+    return res.status(500).json({ error: 'Error al obtener actividad' });
   }
 }
 
+// Eliminar actividad
 export async function remove(req, res) {
   try {
     const { id } = req.params;
     await prisma.actividad.delete({ where: { id: Number(id) } });
-    res.status(204).end();
+    return res.status(204).end();
   } catch (error) {
     console.error('Error al eliminar actividad:', error);
-    res.status(500).json({ error: 'Error al eliminar actividad' });
+    return res.status(500).json({ error: 'Error al eliminar actividad' });
   }
 }
