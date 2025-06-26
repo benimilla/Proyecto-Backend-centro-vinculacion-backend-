@@ -29,6 +29,79 @@ export async function getAll(req, res) {
   }
 }
 
+
+export async function getActividadesSemanaActual(req, res) {
+  try {
+    const hoy = new Date();
+
+    // Calcular lunes de la semana actual (considerando domingo=0)
+    const primerDiaSemana = new Date(hoy);
+    primerDiaSemana.setDate(hoy.getDate() - hoy.getDay() + 1);
+    primerDiaSemana.setHours(0, 0, 0, 0);
+
+    // Calcular domingo de la semana actual
+    const ultimoDiaSemana = new Date(primerDiaSemana);
+    ultimoDiaSemana.setDate(primerDiaSemana.getDate() + 6);
+    ultimoDiaSemana.setHours(23, 59, 59, 999);
+
+    // Obtener actividades que se solapen con esta semana y que estén programadas
+    const actividades = await prisma.actividad.findMany({
+      where: {
+        estado: 'Programada',
+        OR: [
+          {
+            // Actividad empieza dentro de la semana
+            fechaInicio: {
+              gte: primerDiaSemana,
+              lte: ultimoDiaSemana,
+            },
+          },
+          {
+            // Actividad termina dentro de la semana
+            fechaFin: {
+              gte: primerDiaSemana,
+              lte: ultimoDiaSemana,
+            },
+          },
+          {
+            // Actividad que engloba toda la semana
+            AND: [
+              { fechaInicio: { lte: primerDiaSemana } },
+              { fechaFin: { gte: ultimoDiaSemana } },
+            ],
+          },
+        ],
+      },
+      orderBy: { fechaInicio: 'asc' },
+      select: {
+        id: true,
+        nombre: true,
+        periodicidad: true,
+        fechaInicio: true,
+        fechaFin: true,
+        cupo: true,
+        socioComunitarioId: true,
+        proyectoId: true,
+        estado: true,
+        creadoPorId: true,
+        citas: { select: { id: true, fecha: true, horaInicio: true, horaFin: true } },
+      },
+    });
+
+    return res.json({ 
+      semana: {
+        inicio: primerDiaSemana,
+        fin: ultimoDiaSemana,
+      },
+      actividades,
+    });
+  } catch (error) {
+    console.error('Error al obtener actividades semana actual:', error);
+    return res.status(500).json({ error: 'Error al obtener actividades de la semana actual' });
+  }
+}
+
+
 export async function create(req, res) {
   try {
     const {
@@ -84,6 +157,60 @@ export async function create(req, res) {
     res.status(500).json({ error: 'Error al crear actividad', detalle: error.message });
   }
 }
+
+
+export async function cancel(req, res) {
+  try {
+    const { id } = req.params;
+    const { motivo } = req.body;
+
+    if (!motivo || motivo.trim() === '') {
+      return res.status(400).json({ error: 'Debe proporcionar un motivo para la cancelación' });
+    }
+
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    const actividadId = Number(id);
+    if (isNaN(actividadId)) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
+
+    // Verificar si la actividad existe
+    const actividad = await prisma.actividad.findUnique({
+      where: { id: actividadId },
+      include: { citas: true },
+    });
+
+    if (!actividad) {
+      return res.status(404).json({ error: 'Actividad no encontrada' });
+    }
+
+    // Actualizar estado de la actividad a Cancelada
+    await prisma.actividad.update({
+      where: { id: actividadId },
+      data: { estado: 'Cancelada' },
+    });
+
+    // Actualizar todas las citas asociadas a Cancelada y guardar motivo
+    await prisma.cita.updateMany({
+      where: { actividadId },
+      data: {
+        estado: 'Cancelada',
+        motivoCancelacion: motivo,
+      },
+    });
+
+    res.json({ message: 'Actividad cancelada exitosamente' });
+  } catch (error) {
+    console.error('Error al cancelar actividad:', error);
+    res.status(500).json({ error: 'Error al cancelar actividad', detalle: error.message });
+  }
+}
+
+
+
 
 export async function getById(req, res) {
   try {

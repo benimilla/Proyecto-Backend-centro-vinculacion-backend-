@@ -60,7 +60,7 @@ export async function forgotPassword(req, res) {
     }
 
     const token = crypto.randomBytes(32).toString('hex');
-    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+    const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
     await prisma.usuario.update({
       where: { email },
