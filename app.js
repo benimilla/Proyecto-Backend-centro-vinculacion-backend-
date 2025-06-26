@@ -12,7 +12,7 @@ import { auth } from './middlewares/auth.middleware.js';
 import { router as authRoutes } from './routes/auth.routes.js';
 import { router as userRoutes } from './routes/user.routes.js';
 import { router as activityRoutes } from './routes/activity.routes.js';
-import { router as appointmentRoutes } from './routes/appointment.routes.js'; // <-- cita
+import { router as citaRoutes } from './routes/cita.routes.js'; // <-- aquí cambia appointment a cita
 import { router as fileRoutes } from './routes/file.routes.js';
 import { router as maintenanceRoutes } from './routes/maintenance.routes.js';
 
@@ -61,7 +61,7 @@ app.use(auth);
 // Rutas protegidas
 app.use('/api/users', userRoutes);
 app.use('/api/activities', activityRoutes);
-app.use('/api/appointments', appointmentRoutes);  // <-- aquí se usa el controlador y rutas de cita
+app.use('/api/citas', citaRoutes);  // <-- aquí usas /api/citas
 app.use('/api/files', fileRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 
