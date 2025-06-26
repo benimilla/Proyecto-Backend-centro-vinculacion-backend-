@@ -4,22 +4,25 @@ import { auth } from '../middlewares/auth.middleware.js';
 
 export const router = express.Router();
 
+// Todas las rutas requieren autenticación
+router.use(auth);
+
 // Obtener todas las citas
-router.get('/', auth, citaController.getAll);
+router.get('/', citaController.getAllCitas);
 
 // Obtener cita por ID
-router.get('/:id', auth, citaController.getById);
+router.get('/:id', citaController.getByIdCita);
 
-// Crear nueva cita puntual
-router.post('/', auth, citaController.create);
+// Crear una nueva cita (puntual o periódica)
+router.post('/', citaController.createCita);
 
-// Actualizar cita por ID
-router.put('/:id', auth, citaController.update);
+// Actualizar una cita
+router.put('/:id', citaController.updateCita);
 
-// Cancelar cita (motivo obligatorio)
-router.put('/:id/cancelar', auth, citaController.cancel);
+// Cancelar cita (requiere motivo)
+router.patch('/:id/cancelar', citaController.cancelCita);
 
-// Eliminar cita por ID
-router.delete('/:id', auth, citaController.remove);
+// Eliminar cita
+router.delete('/:id', citaController.removeCita);
 
 console.log('cita.routes.js cargado');
