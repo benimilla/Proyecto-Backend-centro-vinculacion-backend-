@@ -1,51 +1,68 @@
 import { prisma } from '../config/db.js';
 
-// Función auxiliar para generar citas según periodicidad entre fechas
-async function generarCitas(actividadId, fechaInicio, fechaFin, lugarId, horaInicio, horaFin, userId) {
-  let fecha = new Date(fechaInicio);
-  const citas = [];
-
-  while (fecha <= fechaFin) {
-    const conflicto = await prisma.cita.findFirst({
-      where: {
-        lugarId,
-        fecha,
-        estado: 'Programada',
-        OR: [
-          {
-            horaInicio: { lt: horaFin },
-            horaFin: { gt: horaInicio },
+// Función auxiliar para verificar conflictos de horario en citas
+async function verificarConflicto(lugarId, fecha, horaInicio, horaFin) {
+  const conflicto = await prisma.cita.findFirst({
+    where: {
+      lugarId,
+      fecha,
+      OR: [
+        {
+          horaInicio: {
+            lt: horaFin,
           },
-        ],
-      },
-    });
-
-    if (conflicto) {
-      throw new Error(`El lugar ${lugarId} está ocupado el ${fecha.toISOString().slice(0, 10)} de ${horaInicio} a ${horaFin}`);
-    }
-
-    citas.push(
-      prisma.cita.create({
-        data: {
-          actividadId,
-          fecha: new Date(fecha),
-          estado: 'Programada',
-          lugarId,
-          horaInicio,
-          horaFin,
-          creadoPorId: userId,
+          horaFin: {
+            gt: horaInicio,
+          },
         },
-      })
-    );
+      ],
+      estado: { not: 'Cancelada' },
+    },
+  });
 
-    fecha.setDate(fecha.getDate() + 7);
+  if (conflicto) {
+    return `El lugar ya está ocupado el ${fecha.toISOString().split('T')[0]} de ${horaInicio} a ${horaFin}`;
   }
-
-  await Promise.all(citas);
+  return null;
 }
 
+// Función auxiliar para generar citas periódicas según días entre fechas
+async function generarCitasPeriodicas(
+  actividadId,
+  fechaInicio,
+  fechaFin,
+  lugarId,
+  horaInicio,
+  horaFin,
+  creadoPorId
+) {
+  const citas = [];
+  let currentDate = new Date(fechaInicio);
+  while (currentDate <= fechaFin) {
+    // Verificar conflicto
+    const conflicto = await verificarConflicto(lugarId, currentDate, horaInicio, horaFin);
+    if (conflicto) {
+      return { error: conflicto };
+    }
 
-// Crear actividad (CA-08, CA-09, CA-10, CA-11)
+    citas.push({
+      actividadId,
+      lugarId,
+      fecha: new Date(currentDate),
+      horaInicio,
+      horaFin,
+      estado: 'Programada',
+      creadoPorId,
+    });
+
+    currentDate.setDate(currentDate.getDate() + 7); // Cada semana, cambia según periodicidad real
+  }
+
+  await prisma.cita.createMany({ data: citas });
+  return { success: true };
+}
+
+// Crear actividad (y generar citas)
 export async function create(req, res) {
   try {
     const {
@@ -62,6 +79,7 @@ export async function create(req, res) {
       horaFin,
     } = req.body;
 
+    // Validaciones básicas
     const errores = {};
     if (!nombre) errores.nombre = 'El campo nombre es obligatorio';
     if (!tipoActividadId) errores.tipoActividadId = 'El campo tipoActividadId es obligatorio';
@@ -78,10 +96,7 @@ export async function create(req, res) {
     if (isNaN(inicio)) errores.fechaInicio = 'Fecha de inicio inválida';
     if (fechaFin && isNaN(fin)) errores.fechaFin = 'Fecha de fin inválida';
     if (fin && fin < inicio) errores.fechaFin = 'La fecha de fin no puede ser menor que la de inicio';
-
-    if (horaInicio && horaFin && horaInicio >= horaFin) {
-      errores.horas = 'La hora de inicio debe ser menor que la hora de fin';
-    }
+    if (horaInicio >= horaFin) errores.horas = 'La hora de inicio debe ser menor que la de fin';
 
     if (Object.keys(errores).length > 0) {
       return res.status(400).json({ errores });
@@ -91,27 +106,7 @@ export async function create(req, res) {
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    const conflicto = await prisma.cita.findFirst({
-      where: {
-        lugarId,
-        fecha: inicio,
-        estado: 'Programada',
-        OR: [
-          {
-            horaInicio: { lt: horaFin },
-            horaFin: { gt: horaInicio },
-          },
-        ],
-      },
-    });
-
-    if (conflicto) {
-      return res.status(409).json({
-        error: `El lugar ya está ocupado el día ${inicio.toISOString().slice(0, 10)} de ${horaInicio} a ${horaFin}`,
-        sugerencias: await obtenerSugerencias(lugarId, inicio, horaInicio, horaFin),
-      });
-    }
-
+    // Crear la actividad
     const actividad = await prisma.actividad.create({
       data: {
         nombre,
@@ -123,23 +118,45 @@ export async function create(req, res) {
         proyectoId: proyectoId || null,
         cupo: cupo ?? undefined,
         creadoPorId: req.user.userId,
+        estado: 'Programada',
       },
     });
 
-    if (periodicidad === 'Periódica' && fin) {
-      await generarCitas(actividad.id, inicio, fin, lugarId, horaInicio, horaFin, req.user.userId);
-    } else if (periodicidad === 'Puntual') {
+    // Crear citas según periodicidad
+    if (periodicidad === 'Puntual') {
+      // Verificar conflicto
+      const conflicto = await verificarConflicto(lugarId, inicio, horaInicio, horaFin);
+      if (conflicto) {
+        return res.status(409).json({ error: conflicto });
+      }
+
       await prisma.cita.create({
         data: {
           actividadId: actividad.id,
-          fecha: inicio,
-          estado: 'Programada',
           lugarId,
+          fecha: inicio,
           horaInicio,
           horaFin,
+          estado: 'Programada',
           creadoPorId: req.user.userId,
         },
       });
+    } else if (periodicidad === 'Periódica') {
+      if (!fin) {
+        return res.status(400).json({ error: 'Debe proporcionar fechaFin para actividades periódicas' });
+      }
+
+      const result = await generarCitasPeriodicas(
+        actividad.id,
+        inicio,
+        fin,
+        lugarId,
+        horaInicio,
+        horaFin,
+        req.user.userId
+      );
+
+      if (result.error) return res.status(409).json({ error: result.error });
     }
 
     return res.status(201).json({ message: 'Actividad creada exitosamente', actividad });
@@ -149,8 +166,7 @@ export async function create(req, res) {
   }
 }
 
-
-// Actualizar actividad (CA-12, CA-13, CA-14)
+// Actualizar actividad
 export async function update(req, res) {
   try {
     const { id } = req.params;
@@ -163,12 +179,10 @@ export async function update(req, res) {
       return res.status(404).json({ error: 'Actividad no encontrada' });
     }
 
-    // Validar permisos (solo creador puede modificar) (CA-13)
     if (actividad.creadoPorId !== req.user.userId) {
       return res.status(403).json({ error: 'No tiene permisos para modificar esta actividad' });
     }
 
-    // Bloquear modificación si actividad completada (CA-14)
     if (actividad.estado === 'Completada') {
       return res.status(400).json({ error: 'No se puede modificar una actividad completada' });
     }
@@ -214,7 +228,7 @@ export async function update(req, res) {
   }
 }
 
-// Cancelar actividad (CA-15, CA-16)
+// Cancelar actividad + cancelar todas sus citas
 export async function cancel(req, res) {
   try {
     const { id } = req.params;
@@ -235,7 +249,6 @@ export async function cancel(req, res) {
 
     const actividad = await prisma.actividad.findUnique({
       where: { id: actividadId },
-      include: { citas: true },
     });
 
     if (!actividad) {
@@ -248,7 +261,7 @@ export async function cancel(req, res) {
     });
 
     await prisma.cita.updateMany({
-      where: { actividadId },
+      where: { actividadId: actividadId },
       data: {
         estado: 'Cancelada',
         motivoCancelacion: motivo,
@@ -280,8 +293,6 @@ export async function getAll(req, res) {
         estado: true,
         fechaCreacion: true,
         creadoPorId: true,
-        citas: { select: { id: true } },
-        archivos: { select: { id: true } },
       },
     });
 
@@ -292,124 +303,12 @@ export async function getAll(req, res) {
   }
 }
 
-// Obtener actividades de la semana actual (CA-17)
-export async function getActividadesSemanaActual(req, res) {
-  try {
-    const hoy = new Date();
-
-    const primerDiaSemana = new Date(hoy);
-    primerDiaSemana.setDate(hoy.getDate() - hoy.getDay() + 1);
-    primerDiaSemana.setHours(0, 0, 0, 0);
-
-    const ultimoDiaSemana = new Date(primerDiaSemana);
-    ultimoDiaSemana.setDate(primerDiaSemana.getDate() + 6);
-    ultimoDiaSemana.setHours(23, 59, 59, 999);
-
-    const actividades = await prisma.actividad.findMany({
-      where: {
-        estado: 'Programada',
-        OR: [
-          {
-            fechaInicio: {
-              gte: primerDiaSemana,
-              lte: ultimoDiaSemana,
-            },
-          },
-          {
-            fechaFin: {
-              gte: primerDiaSemana,
-              lte: ultimoDiaSemana,
-            },
-          },
-          {
-            AND: [
-              { fechaInicio: { lte: primerDiaSemana } },
-              { fechaFin: { gte: ultimoDiaSemana } },
-            ],
-          },
-        ],
-      },
-      orderBy: { fechaInicio: 'asc' },
-      select: {
-        id: true,
-        nombre: true,
-        periodicidad: true,
-        fechaInicio: true,
-        fechaFin: true,
-        cupo: true,
-        socioComunitarioId: true,
-        proyectoId: true,
-        estado: true,
-        creadoPorId: true,
-        citas: { select: { id: true, fecha: true, horaInicio: true, horaFin: true } },
-      },
-    });
-
-    return res.json({
-      semana: {
-        inicio: primerDiaSemana,
-        fin: ultimoDiaSemana,
-      },
-      actividades,
-    });
-  } catch (error) {
-    console.error('Error al obtener actividades semana actual:', error);
-    return res.status(500).json({ error: 'Error al obtener actividades de la semana actual' });
-  }
-}
-
-// Obtener actividades del mes (CA-18)
-export async function getActividadesMes(req, res) {
-  try {
-    const { year, month } = req.query;
-    if (!year || !month) {
-      return res.status(400).json({ error: 'Faltan parámetros year o month' });
-    }
-
-    const primerDiaMes = new Date(year, month - 1, 1);
-    const ultimoDiaMes = new Date(year, month, 0, 23, 59, 59, 999);
-
-    const actividades = await prisma.actividad.findMany({
-      where: {
-        estado: 'Programada',
-        OR: [
-          { fechaInicio: { gte: primerDiaMes, lte: ultimoDiaMes } },
-          { fechaFin: { gte: primerDiaMes, lte: ultimoDiaMes } },
-          {
-            AND: [
-              { fechaInicio: { lte: primerDiaMes } },
-              { fechaFin: { gte: ultimoDiaMes } },
-            ],
-          },
-        ],
-      },
-      orderBy: { fechaInicio: 'asc' },
-      select: {
-        id: true,
-        nombre: true,
-        fechaInicio: true,
-        fechaFin: true,
-        citas: { select: { fecha: true } },
-      },
-    });
-
-    return res.json({ actividades });
-  } catch (error) {
-    console.error('Error al obtener actividades mes:', error);
-    return res.status(500).json({ error: 'Error al obtener actividades del mes' });
-  }
-}
-
 // Obtener actividad por ID
 export async function getById(req, res) {
   try {
     const { id } = req.params;
     const actividad = await prisma.actividad.findUnique({
       where: { id: Number(id) },
-      include: {
-        citas: { select: { id: true } },
-        archivos: { select: { id: true } },
-      },
     });
 
     if (!actividad) {
