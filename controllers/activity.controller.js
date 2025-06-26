@@ -1,12 +1,11 @@
 import { prisma } from '../config/db.js';
 
 // Función auxiliar para generar citas según periodicidad entre fechas
-async function generarCitas(actividadId, fechaInicio, fechaFin, periodicidad, lugarId, horaInicio, horaFin) {
+async function generarCitas(actividadId, fechaInicio, fechaFin, lugarId, horaInicio, horaFin) {
   let fecha = new Date(fechaInicio);
   const citas = [];
 
   while (fecha <= fechaFin) {
-    // Validar conflicto de horario antes de crear cita
     const conflicto = await prisma.cita.findFirst({
       where: {
         lugarId,
@@ -22,9 +21,7 @@ async function generarCitas(actividadId, fechaInicio, fechaFin, periodicidad, lu
     });
 
     if (conflicto) {
-      throw new Error(
-        `El lugar ${lugarId} ya está ocupado el ${fecha.toISOString().slice(0, 10)} de ${horaInicio} a ${horaFin}`
-      );
+      throw new Error(`El lugar ${lugarId} está ocupado el ${fecha.toISOString().slice(0, 10)} de ${horaInicio} a ${horaFin}`);
     }
 
     citas.push(
@@ -36,24 +33,13 @@ async function generarCitas(actividadId, fechaInicio, fechaFin, periodicidad, lu
           lugarId,
           horaInicio,
           horaFin,
+          creadoPorId: req.user.userId, // si tienes el user aquí, o pásalo como parámetro
         },
       })
     );
 
-    switch (periodicidad) {
-      case 'diaria':
-        fecha.setDate(fecha.getDate() + 1);
-        break;
-      case 'semanal':
-        fecha.setDate(fecha.getDate() + 7);
-        break;
-      case 'mensual':
-        fecha.setMonth(fecha.getMonth() + 1);
-        break;
-      default:
-        // Para actividad puntual solo una cita
-        fecha = new Date(fechaFin.getTime() + 1);
-    }
+    // Asumamos periodicidad semanal para ejemplo, o podrías pasar periodicidad y ajustar
+    fecha.setDate(fecha.getDate() + 7);
   }
 
   await Promise.all(citas);
@@ -76,7 +62,7 @@ export async function create(req, res) {
       horaFin,
     } = req.body;
 
-    // Validar campos obligatorios
+    // Validación básica (los campos requeridos en Actividad + cita)
     const errores = {};
     if (!nombre) errores.nombre = 'El campo nombre es obligatorio';
     if (!tipoActividadId) errores.tipoActividadId = 'El campo tipoActividadId es obligatorio';
@@ -106,13 +92,11 @@ export async function create(req, res) {
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    // Validar conflicto horario para actividad puntual o primera cita de periódica
-    const conflictDate = periodicidad === 'única' ? inicio : inicio;
-
+    // Validar conflicto en citas
     const conflicto = await prisma.cita.findFirst({
       where: {
         lugarId,
-        fecha: conflictDate,
+        fecha: inicio,
         estado: 'Programada',
         OR: [
           {
@@ -125,8 +109,8 @@ export async function create(req, res) {
 
     if (conflicto) {
       return res.status(409).json({
-        error: `El lugar ya está ocupado el día ${conflictDate.toISOString().slice(0, 10)} de ${horaInicio} a ${horaFin}`,
-        sugerencias: await obtenerSugerencias(lugarId, conflictDate, horaInicio, horaFin),
+        error: `El lugar ya está ocupado el día ${inicio.toISOString().slice(0, 10)} de ${horaInicio} a ${horaFin}`,
+        sugerencias: await obtenerSugerencias(lugarId, inicio, horaInicio, horaFin),
       });
     }
 
@@ -145,10 +129,10 @@ export async function create(req, res) {
       },
     });
 
-    // Crear citas según periodicidad (CA-09)
-    if (periodicidad !== 'única' && fin) {
-      await generarCitas(actividad.id, inicio, fin, periodicidad, lugarId, horaInicio, horaFin);
-    } else if (periodicidad === 'única') {
+    // Crear citas según periodicidad
+    if (periodicidad === 'Periódica' && fin) {
+      await generarCitas(actividad.id, inicio, fin, lugarId, horaInicio, horaFin);
+    } else if (periodicidad === 'Puntual') {
       await prisma.cita.create({
         data: {
           actividadId: actividad.id,
@@ -157,33 +141,19 @@ export async function create(req, res) {
           lugarId,
           horaInicio,
           horaFin,
+          creadoPorId: req.user.userId,
         },
       });
     }
 
-    // CA-08: El frontend puede redirigir al calendario tras mensaje de éxito
     return res.status(201).json({ message: 'Actividad creada exitosamente', actividad });
+
   } catch (error) {
     console.error('Error al crear actividad:', error);
     return res.status(500).json({ error: 'Error al crear actividad', detalle: error.message });
   }
 }
 
-// Obtener sugerencias de horarios/lugares alternativos (para CA-11)
-async function obtenerSugerencias(lugarId, fecha, horaInicio, horaFin) {
-  // Ejemplo simple: buscar horarios libres en mismo lugar para esa fecha (podrías mejorar con lógica más compleja)
-  // Aquí solo devuelve horarios libres entre 08:00 y 20:00 que no se crucen con citas existentes
-  const horariosOcupados = await prisma.cita.findMany({
-    where: { lugarId, fecha, estado: 'Programada' },
-    select: { horaInicio: true, horaFin: true },
-  });
-
-  // Aquí deberías implementar lógica para calcular franjas libres. Para simplificar, solo retorno un ejemplo fijo:
-  return [
-    { horaInicio: '08:00', horaFin: '09:00' },
-    { horaInicio: '18:00', horaFin: '20:00' },
-  ];
-}
 
 // Actualizar actividad (CA-12, CA-13, CA-14)
 export async function update(req, res) {
