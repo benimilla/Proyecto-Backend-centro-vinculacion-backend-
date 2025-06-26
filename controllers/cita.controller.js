@@ -1,19 +1,18 @@
 import { prisma } from '../config/db.js';
 
-// Verificar conflicto de horario para cita puntual
+// Función auxiliar para verificar conflictos de horario en citas
 async function verificarConflictoCita(lugarId, fecha, horaInicio, horaFin, citaId = null) {
+  const searchDate = new Date(fecha);
+  searchDate.setHours(0, 0, 0, 0); 
+
   const conflicto = await prisma.cita.findFirst({
     where: {
       lugarId,
-      fecha,
+      fecha: searchDate,
       OR: [
         {
-          horaInicio: {
-            lt: horaFin,
-          },
-          horaFin: {
-            gt: horaInicio,
-          },
+          horaInicio: { lt: horaFin },
+          horaFin: { gt: horaInicio },
         },
       ],
       estado: { not: 'Cancelada' },
@@ -22,66 +21,123 @@ async function verificarConflictoCita(lugarId, fecha, horaInicio, horaFin, citaI
   });
 
   if (conflicto) {
-    return `El lugar ${conflicto.lugarId} ya está ocupado el ${fecha.toISOString().split('T')[0]} de ${horaInicio} a ${horaFin}`;
+    return `El lugar ya está ocupado el ${fecha.toISOString().split('T')[0]} de ${conflicto.horaInicio} a ${conflicto.horaFin}`;
   }
   return null;
 }
 
-// Crear cita puntual independiente
-export async function create(req, res) {
+// Crear cita (manejando puntual y periódica)
+export async function createCita(req, res) { 
   try {
     const {
       actividadId,
       lugarId,
-      fecha,
+      fecha, 
       horaInicio,
       horaFin,
+      periodicidadTipo, 
+      fechaInicioPeriodica, 
+      fechaFinPeriodica, 
     } = req.body;
 
-    if (!actividadId || !lugarId || !fecha || !horaInicio || !horaFin) {
-      return res.status(400).json({ error: 'Faltan campos obligatorios' });
+    // Validaciones básicas para CITA
+    if (!actividadId || !lugarId || !fecha || !horaInicio) {
+      return res.status(400).json({ error: 'Faltan campos obligatorios para la cita: actividadId, lugarId, fecha, horaInicio' });
     }
 
     const fechaCita = new Date(fecha);
-    if (isNaN(fechaCita)) {
-      return res.status(400).json({ error: 'Fecha inválida' });
+    if (isNaN(fechaCita.getTime())) {
+      return res.status(400).json({ error: 'Fecha inválida para la cita' });
     }
 
-    if (horaInicio >= horaFin) {
-      return res.status(400).json({ error: 'La hora de inicio debe ser menor que la de fin' });
+    if (horaFin && horaInicio >= horaFin) {
+      return res.status(400).json({ error: 'La hora de inicio de la cita debe ser menor que la de fin' });
     }
 
     if (!req.user || !req.user.userId) {
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    // Verificar conflicto
-    const conflicto = await verificarConflictoCita(lugarId, fechaCita, horaInicio, horaFin);
-    if (conflicto) {
-      return res.status(409).json({ error: conflicto });
+    const actividadExistente = await prisma.actividad.findUnique({
+      where: { id: actividadId }
+    });
+    if (!actividadExistente) {
+      return res.status(404).json({ error: 'Actividad asociada no encontrada' });
     }
 
-    const cita = await prisma.cita.create({
-      data: {
-        actividadId,
-        lugarId,
-        fecha: fechaCita,
-        horaInicio,
-        horaFin,
-        estado: 'Programada',
-        creadoPorId: req.user.userId,
-      },
-    });
+    if (periodicidadTipo === 'Puntual') {
+      const conflicto = await verificarConflictoCita(lugarId, fechaCita, horaInicio, horaFin);
+      if (conflicto) {
+        return res.status(409).json({ error: conflicto });
+      }
 
-    return res.status(201).json({ message: 'Cita creada exitosamente', cita });
+      const cita = await prisma.cita.create({
+        data: {
+          actividadId: Number(actividadId),
+          lugarId: Number(lugarId),
+          fecha: fechaCita,
+          horaInicio,
+          horaFin: horaFin || null,
+          estado: 'Programada',
+          creadoPorId: req.user.userId,
+        },
+      });
+      return res.status(201).json({ message: 'Cita puntual creada exitosamente', cita });
+
+    } else if (periodicidadTipo === 'Periódica') {
+      if (!fechaInicioPeriodica || !fechaFinPeriodica) {
+        return res.status(400).json({ error: 'Debe proporcionar fechaInicioPeriodica y fechaFinPeriodica para citas periódicas' });
+      }
+
+      const inicioPeriodica = new Date(fechaInicioPeriodica);
+      const finPeriodica = new Date(fechaFinPeriodica);
+
+      if (isNaN(inicioPeriodica.getTime()) || isNaN(finPeriodica.getTime())) {
+          return res.status(400).json({ error: 'Fechas de rango inválidas para citas periódicas' });
+      }
+      if (inicioPeriodica > finPeriodica) {
+        return res.status(400).json({ error: 'La fecha de inicio periódica no puede ser mayor que la fecha de fin periódica' });
+      }
+
+      const citasAcrear = [];
+      let currentDate = new Date(inicioPeriodica); 
+
+      while (currentDate <= finPeriodica) {
+        const conflicto = await verificarConflictoCita(lugarId, currentDate, horaInicio, horaFin);
+        if (conflicto) {
+          return res.status(409).json({ error: conflicto + ` (Fecha: ${currentDate.toISOString().split('T')[0]})` });
+        }
+
+        citasAcrear.push({
+          actividadId: Number(actividadId),
+          lugarId: Number(lugarId),
+          fecha: new Date(currentDate), 
+          horaInicio,
+          horaFin: horaFin || null,
+          estado: 'Programada',
+          creadoPorId: req.user.userId,
+        });
+
+        currentDate.setDate(currentDate.getDate() + 1); 
+      }
+
+      if (citasAcrear.length > 0) {
+        await prisma.cita.createMany({ data: citasAcrear });
+      }
+      return res.status(201).json({ message: `Se crearon ${citasAcrear.length} citas periódicas exitosamente` });
+
+    } else {
+      return res.status(400).json({ error: 'Tipo de periodicidad de cita no reconocido' });
+    }
+
   } catch (error) {
-    console.error('Error al crear cita:', error);
-    return res.status(500).json({ error: 'Error al crear cita', detalle: error.message });
+    console.error('Error al crear cita(s):', error);
+    return res.status(500).json({ error: 'Error al crear cita(s)', detalle: error.message });
   }
 }
 
 // Obtener todas las citas
-export async function getAll(req, res) {
+export async function getAllCitas(req, res) { 
   try {
     const citas = await prisma.cita.findMany({
       include: {
@@ -99,7 +155,7 @@ export async function getAll(req, res) {
 }
 
 // Obtener cita por ID
-export async function getById(req, res) {
+export async function getByIdCita(req, res) { 
   try {
     const { id } = req.params;
     const cita = await prisma.cita.findUnique({
@@ -123,7 +179,7 @@ export async function getById(req, res) {
 }
 
 // Actualizar cita
-export async function update(req, res) {
+export async function updateCita(req, res) { 
   try {
     const { id } = req.params;
     const {
@@ -148,28 +204,31 @@ export async function update(req, res) {
       return res.status(403).json({ error: 'No tiene permisos para modificar esta cita' });
     }
 
-    // Validaciones
-    if (fecha) {
-      const fechaCita = new Date(fecha);
-      if (isNaN(fechaCita)) return res.status(400).json({ error: 'Fecha inválida' });
+    let fechaCita = fecha ? new Date(fecha) : citaExistente.fecha;
+    if (fecha && isNaN(fechaCita.getTime())) {
+      return res.status(400).json({ error: 'Fecha inválida' });
     }
 
-    if (horaInicio && horaFin && horaInicio >= horaFin) {
+    let actualHoraInicio = horaInicio || citaExistente.horaInicio;
+    let actualHoraFin = horaFin || citaExistente.horaFin;
+
+    if (actualHoraInicio && actualHoraFin && actualHoraInicio >= actualHoraFin) {
       return res.status(400).json({ error: 'La hora de inicio debe ser menor que la de fin' });
     }
 
-    // Verificar conflicto solo si cambian lugar o fecha o horas
+    const updatedLugarId = lugarId !== undefined ? lugarId : citaExistente.lugarId;
+
     if (
-      (lugarId && lugarId !== citaExistente.lugarId) ||
-      (fecha && new Date(fecha).getTime() !== citaExistente.fecha.getTime()) ||
-      (horaInicio && horaInicio !== citaExistente.horaInicio) ||
-      (horaFin && horaFin !== citaExistente.horaFin)
+      (lugarId !== undefined && lugarId !== citaExistente.lugarId) ||
+      (fecha !== undefined && fechaCita.getTime() !== citaExistente.fecha.getTime()) ||
+      (horaInicio !== undefined && horaInicio !== citaExistente.horaInicio) ||
+      (horaFin !== undefined && horaFin !== citaExistente.horaFin)
     ) {
       const conflicto = await verificarConflictoCita(
-        lugarId || citaExistente.lugarId,
-        fecha ? new Date(fecha) : citaExistente.fecha,
-        horaInicio || citaExistente.horaInicio,
-        horaFin || citaExistente.horaFin,
+        updatedLugarId,
+        fechaCita,
+        actualHoraInicio,
+        actualHoraFin,
         citaExistente.id
       );
       if (conflicto) {
@@ -178,8 +237,8 @@ export async function update(req, res) {
     }
 
     const dataToUpdate = {};
-    if (lugarId !== undefined) dataToUpdate.lugarId = lugarId;
-    if (fecha !== undefined) dataToUpdate.fecha = new Date(fecha);
+    if (lugarId !== undefined) dataToUpdate.lugarId = Number(lugarId);
+    if (fecha !== undefined) dataToUpdate.fecha = fechaCita;
     if (horaInicio !== undefined) dataToUpdate.horaInicio = horaInicio;
     if (horaFin !== undefined) dataToUpdate.horaFin = horaFin;
     if (estado !== undefined) dataToUpdate.estado = estado;
@@ -198,7 +257,7 @@ export async function update(req, res) {
 }
 
 // Cancelar cita (motivo obligatorio)
-export async function cancel(req, res) {
+export async function cancelCita(req, res) { 
   try {
     const { id } = req.params;
     const { motivo } = req.body;
@@ -238,7 +297,7 @@ export async function cancel(req, res) {
 }
 
 // Eliminar cita
-export async function remove(req, res) {
+export async function removeCita(req, res) { 
   try {
     const { id } = req.params;
 
