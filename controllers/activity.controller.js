@@ -1,7 +1,7 @@
 import { prisma } from '../config/db.js';
 
 // Función auxiliar para generar citas según periodicidad entre fechas
-async function generarCitas(actividadId, fechaInicio, fechaFin, lugarId, horaInicio, horaFin) {
+async function generarCitas(actividadId, fechaInicio, fechaFin, lugarId, horaInicio, horaFin, userId) {
   let fecha = new Date(fechaInicio);
   const citas = [];
 
@@ -33,17 +33,17 @@ async function generarCitas(actividadId, fechaInicio, fechaFin, lugarId, horaIni
           lugarId,
           horaInicio,
           horaFin,
-          creadoPorId: req.user.userId, // si tienes el user aquí, o pásalo como parámetro
+          creadoPorId: userId,
         },
       })
     );
 
-    // Asumamos periodicidad semanal para ejemplo, o podrías pasar periodicidad y ajustar
     fecha.setDate(fecha.getDate() + 7);
   }
 
   await Promise.all(citas);
 }
+
 
 // Crear actividad (CA-08, CA-09, CA-10, CA-11)
 export async function create(req, res) {
@@ -62,7 +62,6 @@ export async function create(req, res) {
       horaFin,
     } = req.body;
 
-    // Validación básica (los campos requeridos en Actividad + cita)
     const errores = {};
     if (!nombre) errores.nombre = 'El campo nombre es obligatorio';
     if (!tipoActividadId) errores.tipoActividadId = 'El campo tipoActividadId es obligatorio';
@@ -92,7 +91,6 @@ export async function create(req, res) {
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    // Validar conflicto en citas
     const conflicto = await prisma.cita.findFirst({
       where: {
         lugarId,
@@ -114,7 +112,6 @@ export async function create(req, res) {
       });
     }
 
-    // Crear actividad
     const actividad = await prisma.actividad.create({
       data: {
         nombre,
@@ -129,9 +126,8 @@ export async function create(req, res) {
       },
     });
 
-    // Crear citas según periodicidad
     if (periodicidad === 'Periódica' && fin) {
-      await generarCitas(actividad.id, inicio, fin, lugarId, horaInicio, horaFin);
+      await generarCitas(actividad.id, inicio, fin, lugarId, horaInicio, horaFin, req.user.userId);
     } else if (periodicidad === 'Puntual') {
       await prisma.cita.create({
         data: {
@@ -147,7 +143,6 @@ export async function create(req, res) {
     }
 
     return res.status(201).json({ message: 'Actividad creada exitosamente', actividad });
-
   } catch (error) {
     console.error('Error al crear actividad:', error);
     return res.status(500).json({ error: 'Error al crear actividad', detalle: error.message });
