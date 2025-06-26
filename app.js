@@ -12,11 +12,10 @@ import { auth } from './middlewares/auth.middleware.js';
 import { router as authRoutes } from './routes/auth.routes.js';
 import { router as userRoutes } from './routes/user.routes.js';
 import { router as activityRoutes } from './routes/activity.routes.js';
-import { router as citaRoutes } from './routes/cita.routes.js'; // <-- aquí cambia appointment a cita
+import { router as citaRoutes } from './routes/cita.routes.js'; 
 import { router as fileRoutes } from './routes/file.routes.js';
 import { router as maintenanceRoutes } from './routes/maintenance.routes.js';
 
-// Nuevos mantenedores
 import { router as tipoActividadRoutes } from './routes/tipoActividad.routes.js';
 import { router as lugarRoutes } from './routes/lugar.routes.js';
 import { router as oferenteRoutes } from './routes/oferente.routes.js';
@@ -61,7 +60,7 @@ app.use(auth);
 // Rutas protegidas
 app.use('/api/users', userRoutes);
 app.use('/api/activities', activityRoutes);
-app.use('/api/citas', citaRoutes);  // <-- aquí usas /api/citas
+app.use('/api/citas', citaRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 
@@ -72,7 +71,7 @@ app.use('/api/oferentes', oferenteRoutes);
 app.use('/api/socios', socioRoutes);
 app.use('/api/proyectos', proyectoRoutes);
 
-// 404
+// 404 - Endpoint no encontrado
 app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint no encontrado' });
 });

@@ -7,12 +7,6 @@ export const router = express.Router();
 // Obtener todas las actividades
 router.get('/', auth, activityController.getAll);
 
-// Obtener actividades de la semana actual (vista semanal)
-router.get('/semana-actual', auth, activityController.getActividadesSemanaActual);
-
-// Obtener actividades del mes (vista mensual) - espera query params year y month
-router.get('/mes', auth, activityController.getActividadesMes);
-
 // Crear nueva actividad
 router.post('/', auth, activityController.create);
 
