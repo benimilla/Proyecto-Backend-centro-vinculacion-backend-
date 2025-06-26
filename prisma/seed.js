@@ -67,67 +67,74 @@ async function main() {
     });
   }
 
-  await prisma.tipoActividad.createMany({
-    data: [
-      { nombre: 'Taller', descripcion: 'Actividades de formación y capacitación' },
-      { nombre: 'Charla', descripcion: 'Presentaciones informativas' },
-      { nombre: 'Reunión', descripcion: 'Encuentros de planificación' },
-      { nombre: 'Evento', descripcion: 'Actividades especiales o festivales' },
-      { nombre: 'Curso', descripcion: 'Programas educativos estructurados' },
-    ],
-    skipDuplicates: true,
+  // === Crear tipos de actividad ===
+  const tipo1 = await prisma.tipoActividad.upsert({
+    where: { nombre: 'Taller' },
+    update: {},
+    create: { nombre: 'Taller', descripcion: 'Actividades de tipo taller' },
   });
 
-  await prisma.lugar.createMany({
-    data: [
-      { nombre: 'Sala A', cupo: 30, activo: true },
-      { nombre: 'Auditorio Principal', cupo: 100, activo: true },
-      { nombre: 'Sala B', cupo: 25, activo: true },
-      { nombre: 'Sala C', cupo: 20, activo: false },
-      { nombre: 'Patio Central', cupo: 50, activo: true },
-    ],
-    skipDuplicates: true,
+  const tipo2 = await prisma.tipoActividad.upsert({
+    where: { nombre: 'Charla' },
+    update: {},
+    create: { nombre: 'Charla', descripcion: 'Actividades de tipo charla' },
   });
 
-  await prisma.oferente.createMany({
-    data: [
-      { nombre: 'Centro Educativo ABC', docenteResponsable: 'Pedro Vargas', activo: true },
-      { nombre: 'Escuela XYZ', docenteResponsable: 'Luisa Fernández', activo: true },
-      { nombre: 'Instituto 123', docenteResponsable: 'Martín Gómez', activo: true },
-      { nombre: 'Academia DEF', docenteResponsable: 'Ana Torres', activo: false },
-      { nombre: 'Universidad LMN', docenteResponsable: 'Carlos Ruiz', activo: true },
-    ],
-    skipDuplicates: true,
+  // === Crear socio comunitario ===
+  const socio1 = await prisma.socioComunitario.upsert({
+    where: { nombre: 'Comunidad A' },
+    update: {},
+    create: { nombre: 'Comunidad A' },
   });
 
-  await prisma.socioComunitario.createMany({
-    data: [
-      { nombre: 'Comunidad El Sol', activo: true },
-      { nombre: 'Barrio La Paz', activo: true },
-      { nombre: 'Vecinos Unidos', activo: false },
-      { nombre: 'Asociación Cultural', activo: true },
-      { nombre: 'Grupo Juvenil', activo: true },
-    ],
-    skipDuplicates: true,
+  // === Crear proyecto ===
+  const proyecto1 = await prisma.proyecto.upsert({
+    where: { nombre: 'Proyecto X' },
+    update: {},
+    create: { nombre: 'Proyecto X', fechaInicio: new Date('2025-01-01') },
   });
 
-  await prisma.proyecto.createMany({
-    data: [
-      { nombre: 'Proyecto A', descripcion: 'Desarrollo comunitario', fechaInicio: new Date('2024-01-01'), fechaFin: new Date('2024-12-31'), activo: true },
-      { nombre: 'Proyecto B', descripcion: null, fechaInicio: new Date('2024-03-01'), fechaFin: null, activo: true },
-      { nombre: 'Proyecto C', descripcion: 'Apoyo social', fechaInicio: new Date('2023-06-01'), fechaFin: new Date('2024-06-01'), activo: false },
-      { nombre: 'Proyecto D', descripcion: 'Educación', fechaInicio: new Date('2024-05-01'), fechaFin: null, activo: true },
-      { nombre: 'Proyecto E', descripcion: 'Cultura y arte', fechaInicio: new Date('2024-02-15'), fechaFin: new Date('2024-11-15'), activo: true },
-    ],
-    skipDuplicates: true,
+  // === Crear lugar ===
+  const lugar1 = await prisma.lugar.upsert({
+    where: { nombre: 'Sala Principal' },
+    update: {},
+    create: { nombre: 'Sala Principal', cupo: 50 },
   });
 
-  console.log('✅ Seed ejecutado con éxito');
+  // === Crear actividad ===
+  const actividad1 = await prisma.actividad.create({
+    data: {
+      nombre: 'Taller de Capacitación',
+      tipoActividadId: tipo1.id,
+      periodicidad: 'Puntual',
+      fechaInicio: new Date('2025-07-01T09:00:00'),
+      fechaFin: new Date('2025-07-01T12:00:00'),
+      socioComunitarioId: socio1.id,
+      proyectoId: proyecto1.id,
+      cupo: 30,
+      creadoPorId: usuarios[0].id,
+    },
+  });
+
+  // === Crear cita para la actividad ===
+  const cita1 = await prisma.cita.create({
+    data: {
+      actividadId: actividad1.id,
+      lugarId: lugar1.id,
+      fecha: new Date('2025-07-01'),
+      horaInicio: '09:00',
+      horaFin: '12:00',
+      estado: 'Programada',
+      creadoPorId: usuarios[0].id,
+    },
+  });
+
+  console.log('Seed completado con éxito');
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Error en seed:', e);
+    console.error('Error en seed:', e);
     process.exit(1);
   })
   .finally(async () => {
