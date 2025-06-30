@@ -13,7 +13,36 @@ async function main() {
     prisma.usuario.create({ data: { nombre: 'Sofía Ruiz', email: `sofia${random()}@example.com`, password: '123456' } }),
   ]);
 
-  // Crear TipoActividad (catálogo)
+  // Crear 13 permisos para el primer usuario
+  const permisos = [
+    'crear_usuario',
+    'editar_usuario',
+    'eliminar_usuario',
+    'ver_usuarios',
+    'asignar_permisos',
+    'crear_actividad',
+    'editar_actividad',
+    'eliminar_actividad',
+    'ver_actividades',
+    'cargar_archivo',
+    'eliminar_archivo',
+    'crear_cita',
+    'cancelar_cita',
+  ];
+
+  await Promise.all(
+    permisos.map((permiso) =>
+      prisma.permisoUsuario.create({
+        data: {
+          usuarioId: usuarios[0].id,
+          permiso,
+          asignadoPorId: null, // o usuarios[0].id si te interesa registrar el usuario que asignó
+        },
+      })
+    )
+  );
+
+  // Crear TipoActividad
   const tiposActividad = await Promise.all([
     prisma.tipoActividad.upsert({
       where: { nombre: 'Deporte' },
@@ -32,7 +61,7 @@ async function main() {
     }),
   ]);
 
-  // Crear SocioComunitario (catálogo)
+  // Crear SocioComunitario
   const socios = await Promise.all([
     prisma.socioComunitario.upsert({
       where: { nombre: 'Comunidad A' },
@@ -51,7 +80,7 @@ async function main() {
     }),
   ]);
 
-  // Crear Proyectos (catálogo)
+  // Crear Proyectos
   const proyectos = await Promise.all([
     prisma.proyecto.upsert({
       where: { nombre: 'Proyecto 1' },
@@ -81,7 +110,7 @@ async function main() {
       data: {
         nombre: `Actividad ${i}`,
         tipoActividadId: tipoRandom.id,
-        periodicidad: 'Puntual', // o 'Periódica'
+        periodicidad: 'Puntual',
         fechaInicio: new Date(),
         fechaFin: new Date(Date.now() + 86400000),
         cupo: 20 + i,
@@ -93,7 +122,7 @@ async function main() {
     });
   }
 
-  console.log('✅ Seed completado: 5 usuarios, 10 actividades y catálogos creados.');
+  console.log('✅ Seed completado: 5 usuarios, 13 permisos, 10 actividades y catálogos creados.');
 }
 
 main()

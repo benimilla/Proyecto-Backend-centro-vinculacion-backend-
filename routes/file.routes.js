@@ -1,16 +1,27 @@
-// routes/file.routes.js
 import express from 'express';
-import { upload, download } from '../controllers/file.controller.js';
+import { uploadMultiple, download } from '../controllers/file.controller.js';
 import { auth } from '../middlewares/auth.middleware.js';
 import multer from 'multer';
+import path from 'path';
+
+// Almacenamiento con nombre único pero preserva extensión
+const storage = multer.diskStorage({
+  destination: 'uploads/',
+  filename: (req, file, cb) => {
+    const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, uniqueName + ext);
+  }
+});
+
+const uploadMiddleware = multer({ storage });
 
 const router = express.Router();
 
-// Configuración básica de multer para subir archivos
-const uploadMiddleware = multer({ dest: 'uploads/' });
+// Múltiples archivos, hasta 10
+router.post('/:actividadId', auth, uploadMiddleware.array('files', 10), uploadMultiple);
 
-router.post('/:actividadId', auth, uploadMiddleware.single('file'), upload);
-
+// Descarga
 router.get('/download/:filename', auth, download);
 
 export { router };

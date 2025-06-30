@@ -1,40 +1,77 @@
-// controllers/file.controller.js
 import { prisma } from '../config/db.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
-// Para obtener __dirname en ESModules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export async function upload(req, res) {
+// Subida múltiple
+export async function uploadMultiple(req, res) {
   try {
     const { actividadId } = req.params;
-    if (!req.file) {
-      return res.status(400).json({ error: 'No se recibió ningún archivo' });
-    }
-    const filePath = req.file.path;
-    const fileUrl = `/uploads/${req.file.filename}`;
+    const { tipoAdjunto, descripcion } = req.body;
+    const usuarioId = req.user.id; // capturado desde el middleware auth
+    const files = req.files;
 
-    const archivo = await prisma.archivo.create({
-      data: {
-        url: fileUrl,
-        descripcion: req.body.descripcion || '',
-        actividad: { connect: { id: Number(actividadId) } },
-      },
+    if (!files || files.length === 0) {
+      return res.status(400).json({ error: 'No se recibieron archivos' });
+    }
+
+    const archivos = [];
+
+    for (const file of files) {
+      const archivo = await prisma.archivo.create({
+        data: {
+          nombre: file.originalname,
+          ruta: `/uploads/${file.filename}`,
+          tipo: file.mimetype,
+          tamano: file.size,
+          actividadId: Number(actividadId),
+          tipoAdjunto: tipoAdjunto || 'Otro',
+          descripcion: descripcion || '',
+          cargadoPorId: usuarioId,
+        },
+      });
+      archivos.push(archivo);
+    }
+
+    res.status(201).json({
+      mensaje: 'Archivos subidos correctamente',
+      archivos,
     });
-    res.status(201).json(archivo);
   } catch (error) {
-    res.status(500).json({ error: 'Error al subir archivo', detalle: error.message });
+    console.error(error);
+    res.status(500).json({ error: 'Error al subir archivos', detalle: error.message });
   }
 }
 
-export function download(req, res) {
+// Descarga con nombre original
+export async function download(req, res) {
   try {
     const { filename } = req.params;
+
+    // Busca en BD por la ruta
+    const archivo = await prisma.archivo.findFirst({
+      where: {
+        ruta: {
+          endsWith: filename,
+        },
+      },
+    });
+
+    if (!archivo) {
+      return res.status(404).json({ error: 'Archivo no encontrado en BD' });
+    }
+
     const fullPath = path.join(__dirname, '../uploads', filename);
-    res.download(fullPath);
+    if (!fs.existsSync(fullPath)) {
+      return res.status(404).json({ error: 'Archivo físico no encontrado' });
+    }
+
+    res.download(fullPath, archivo.nombre); // descarga con nombre original
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Error al descargar archivo', detalle: error.message });
   }
 }
