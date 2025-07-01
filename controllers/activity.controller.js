@@ -206,54 +206,24 @@ export async function getAll(req, res) {
   try {
     const actividades = await prisma.actividad.findMany({
       orderBy: { fechaInicio: 'desc' },
-      include: {
-        tipoActividad: {
-          select: {
-            id: true,
-            nombre: true
-          }
-        },
-        socioComunitario: {
-          select: {
-            id: true,
-            nombre: true
-          }
-        },
-        proyecto: {
-          select: {
-            id: true,
-            nombre: true
-          }
-        },
-        creadoPor: {
-          select: {
-            id: true,
-            nombre: true,
-            email: true
-          }
-        },
-        citas: {
-          select: {
-            id: true,
-            fecha: true,
-            horaInicio: true,
-            horaFin: true,
-            lugar: {
-              select: {
-                id: true,
-                nombre: true
-              }
-            }
-          }
-        },
-        archivos: {
-          select: {
-            id: true,
-            nombre: true,
-            url: true
-          }
-        }
-      }
+      select: {
+        id: true,
+        nombre: true,
+        tipoActividadId: true,
+        periodicidad: true,
+        fechaInicio: true,
+        fechaFin: true,
+        cupo: true,
+        socioComunitarioId: true,
+        proyectoId: true,
+        estado: true,
+        fechaCreacion: true,
+        creadoPorId: true,
+        // No incluyas citas o archivos directamente aquí si no los necesitas para el listado principal,
+        // ya que la información se va a la tabla de Citas.
+        // citas: { select: { id: true } },
+        // archivos: { select: { id: true } },
+      },
     });
 
     return res.json(actividades);
