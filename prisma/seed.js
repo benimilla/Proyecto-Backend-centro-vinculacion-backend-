@@ -118,34 +118,39 @@ async function crearActividadesYRelacionar(usuarios, catalogos) {
   const actividades = [];
 
   for (let i = 1; i <= 5; i++) {
+    // 🗓️ Fechas únicas para cada actividad
+    const fechaInicio = new Date(now.getTime() + i * 86400000); // i días después de now
+    const fechaFin = new Date(fechaInicio.getTime() + (i + 1) * 3600000); // duración de (i+1) horas
+
     const actividad = await prisma.actividad.create({
       data: {
         nombre: `Actividad ${i}`,
         tipoActividadId: catalogos.tiposActividad[i % catalogos.tiposActividad.length].id,
         periodicidad: 'Puntual',
-        fechaInicio: now,
-        fechaFin: new Date(now.getTime() + 86400000),
+        fechaInicio: fechaInicio,
+        fechaFin: fechaFin,
         cupo: 20 + i,
         socioComunitarioId: catalogos.socios[0].id,
         proyectoId: catalogos.proyectos[0].id,
         creadoPorId: usuarios[i % usuarios.length].id,
       },
     });
+
     actividades.push(actividad);
 
-    // Citas
+    // 📅 Cita con la misma fecha que la actividad
     await prisma.cita.create({
       data: {
         actividadId: actividad.id,
         lugarId: catalogos.lugares[i % catalogos.lugares.length].id,
-        fecha: now,
+        fecha: fechaInicio,
         horaInicio: '10:00',
         horaFin: '12:00',
         creadoPorId: usuarios[i % usuarios.length].id,
       },
     });
 
-    // Oferentes
+    // 👥 Oferente
     await prisma.actividadOferente.create({
       data: {
         actividadId: actividad.id,
@@ -153,7 +158,7 @@ async function crearActividadesYRelacionar(usuarios, catalogos) {
       },
     });
 
-    // Beneficiarios
+    // 🙋 Beneficiario
     const beneficiario = await prisma.beneficiario.create({
       data: {
         caracterizacion: `Beneficiario grupo ${i}`,
@@ -167,7 +172,7 @@ async function crearActividadesYRelacionar(usuarios, catalogos) {
       },
     });
 
-    // Archivos
+    // 📎 Archivo
     await prisma.archivo.create({
       data: {
         nombre: `documento_${i}.pdf`,
