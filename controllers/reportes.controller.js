@@ -10,13 +10,18 @@ export async function generarReporteActividades(req, res) {
     fechaInicio,
     fechaFin,
     tipo,
-    lugarId,
-    oferenteId,
+    lugar,
+    oferente,
     formato = 'pdf'
   } = req.query
 
   try {
-    // Construyo filtros dinámicos
+    // Validación mínima de fechas
+    if (!fechaInicio || !fechaFin) {
+      return res.status(400).send('Se requieren fechaInicio y fechaFin')
+    }
+
+    // Filtro base por fecha
     const where = {
       fecha: {
         gte: new Date(fechaInicio),
@@ -24,21 +29,38 @@ export async function generarReporteActividades(req, res) {
       }
     }
 
+    // Filtro por tipo de actividad (por nombre)
     if (tipo) {
-      where.actividad = { tipoActividadId: Number(tipo) }
-    }
-    if (lugarId) {
-      where.lugarId = Number(lugarId)
-    }
-    if (oferenteId) {
-      // Añado filtro de oferente sobre la relación actividad.actividadesOferentes
-      where.actividad = where.actividad || {}
-      where.actividad.actividadesOferentes = {
-        some: { oferenteId: Number(oferenteId) }
+      where.actividad = {
+        ...(where.actividad || {}),
+        tipoActividad: {
+          nombre: { equals: tipo }
+        }
       }
     }
 
-    // Consulto en base de datos
+    // Filtro por lugar (por nombre)
+    if (lugar) {
+      where.lugar = {
+        nombre: { equals: lugar }
+      }
+    }
+
+    // Filtro por oferente (por nombre)
+    if (oferente) {
+      where.actividad = {
+        ...(where.actividad || {}),
+        actividadesOferentes: {
+          some: {
+            oferente: {
+              nombre: { equals: oferente }
+            }
+          }
+        }
+      }
+    }
+
+    // Consulta con relaciones necesarias
     const citas = await prisma.cita.findMany({
       where,
       include: {
@@ -54,7 +76,7 @@ export async function generarReporteActividades(req, res) {
       }
     })
 
-    // Mapeo al formato plano
+    // Formato plano para exportación
     const data = citas.map(cita => ({
       fecha:      format(new Date(cita.fecha), 'yyyy-MM-dd'),
       titulo:     cita.actividad.nombre,
@@ -65,54 +87,38 @@ export async function generarReporteActividades(req, res) {
       horaFin:    cita.horaFin || 'N/A'
     }))
 
-    // Preparo nombre de archivo con filtros
+    // Nombre base del archivo
     const partes = [
       `del_${fechaInicio}_al_${fechaFin}`,
-      tipo       ? `tipo-${tipo}`       : null,
-      lugarId    ? `lugar-${lugarId}`    : null,
-      oferenteId ? `oferente-${oferenteId}` : null
+      tipo     ? `tipo-${tipo}`       : null,
+      lugar    ? `lugar-${lugar}`     : null,
+      oferente ? `oferente-${oferente}` : null
     ].filter(Boolean)
     const filenameBase = `reporte_actividades_${partes.join('_')}`
 
-    // JSON
+    // Exportación en el formato solicitado
     if (formato === 'json') {
       return res.json(data)
     }
 
-    // PDF
     if (formato === 'pdf') {
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename="${filenameBase}.pdf"`
-      )
+      res.setHeader('Content-Disposition', `attachment; filename="${filenameBase}.pdf"`)
       res.setHeader('Content-Type', 'application/pdf')
       return generarPDF(data, res)
     }
 
-    // XLSX
     if (formato === 'xlsx') {
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename="${filenameBase}.xlsx"`
-      )
-      res.setHeader(
-        'Content-Type',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      )
+      res.setHeader('Content-Disposition', `attachment; filename="${filenameBase}.xlsx"`)
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
       return generarExcel(data, res)
     }
 
-    // CSV
     if (formato === 'csv') {
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename="${filenameBase}.csv"`
-      )
+      res.setHeader('Content-Disposition', `attachment; filename="${filenameBase}.csv"`)
       res.setHeader('Content-Type', 'text/csv')
       return generarCSV(data, res)
     }
 
-    // Formato no soportado
     return res.status(400).send('Formato no soportado')
   } catch (err) {
     console.error('Error al generar el reporte:', err)
@@ -154,6 +160,6 @@ function generarExcel(data, res) {
 
 function generarCSV(data, res) {
   const csvStream = formatCsv({ headers: true })
-  const readable  = Readable.from(data)
+  const readable = Readable.from(data)
   readable.pipe(csvStream).pipe(res)
 }

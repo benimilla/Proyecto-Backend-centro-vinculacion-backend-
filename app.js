@@ -27,7 +27,7 @@ dotenv.config();
 
 const app = express();
 const prisma = new PrismaClient();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 
 // 🔽 Configurar __dirname para ESModules
 const __filename = fileURLToPath(import.meta.url);
@@ -38,7 +38,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // 🔽 Configuración CORS
 const allowedOrigins = [
-  'http://localhost:3000',
+  'http://localhost:4000',
   'https://tudominio-frontend.com', // Reemplaza por el dominio real si tienes uno
 ];
 
