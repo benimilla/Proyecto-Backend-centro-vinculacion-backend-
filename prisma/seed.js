@@ -1,33 +1,38 @@
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
+const now = new Date();
 const random = () => Math.floor(Math.random() * 10000);
 
-async function main() {
-  // Crear usuarios
+async function crearUsuarios() {
   const usuarios = await Promise.all([
-    prisma.usuario.create({ data: { nombre: 'Ana Torres', email: `ana${random()}@example.com`, password: '123456' } }),
-    prisma.usuario.create({ data: { nombre: 'Luis Rojas', email: `luis${random()}@example.com`, password: '123456' } }),
-    prisma.usuario.create({ data: { nombre: 'Carla Pérez', email: `carla${random()}@example.com`, password: '123456' } }),
-    prisma.usuario.create({ data: { nombre: 'Matías Díaz', email: `matias${random()}@example.com`, password: '123456' } }),
-    prisma.usuario.create({ data: { nombre: 'Sofía Ruiz', email: `sofia${random()}@example.com`, password: '123456' } }),
+    prisma.usuario.create({
+      data: {
+        nombre: 'Ana Torres',
+        email: `ana${random()}@example.com`,
+        password: '123456',
+      },
+    }),
+    prisma.usuario.create({
+      data: {
+        nombre: 'Luis Rojas',
+        email: `luis${random()}@example.com`,
+        password: '123456',
+      },
+    }),
+    prisma.usuario.create({
+      data: {
+        nombre: 'Carla Pérez',
+        email: `carla${random()}@example.com`,
+        password: '123456',
+      },
+    }),
   ]);
 
-  // Crear 13 permisos para el primer usuario
   const permisos = [
-    'crear_usuario',
-    'editar_usuario',
-    'eliminar_usuario',
-    'ver_usuarios',
-    'asignar_permisos',
-    'crear_actividad',
-    'editar_actividad',
-    'eliminar_actividad',
-    'ver_actividades',
-    'cargar_archivo',
-    'eliminar_archivo',
-    'crear_cita',
-    'cancelar_cita',
+    'crear_usuario', 'editar_usuario', 'eliminar_usuario', 'ver_usuarios',
+    'asignar_permisos', 'crear_actividad', 'editar_actividad', 'eliminar_actividad',
+    'ver_actividades', 'cargar_archivo', 'eliminar_archivo', 'crear_cita', 'cancelar_cita',
   ];
 
   await Promise.all(
@@ -36,13 +41,16 @@ async function main() {
         data: {
           usuarioId: usuarios[0].id,
           permiso,
-          asignadoPorId: null, // o usuarios[0].id si te interesa registrar el usuario que asignó
+          asignadoPorId: usuarios[0].id,
         },
       })
     )
   );
 
-  // Crear TipoActividad
+  return usuarios;
+}
+
+async function crearCatalogos() {
   const tiposActividad = await Promise.all([
     prisma.tipoActividad.upsert({
       where: { nombre: 'Deporte' },
@@ -54,80 +62,142 @@ async function main() {
       update: {},
       create: { nombre: 'Cultura', descripcion: 'Actividades culturales' },
     }),
-    prisma.tipoActividad.upsert({
-      where: { nombre: 'Educación' },
+  ]);
+
+  const lugares = await Promise.all([
+    prisma.lugar.upsert({
+      where: { nombre: 'Gimnasio Municipal' },
       update: {},
-      create: { nombre: 'Educación', descripcion: 'Actividades educativas' },
+      create: { nombre: 'Gimnasio Municipal', cupo: 50 },
+    }),
+    prisma.lugar.upsert({
+      where: { nombre: 'Biblioteca Central' },
+      update: {},
+      create: { nombre: 'Biblioteca Central', cupo: 30 },
     }),
   ]);
 
-  // Crear SocioComunitario
+  const oferentes = await Promise.all([
+    prisma.oferente.upsert({
+      where: { nombre: 'Universidad A' },
+      update: {},
+      create: { nombre: 'Universidad A', docenteResponsable: 'Dr. Pérez' },
+    }),
+    prisma.oferente.upsert({
+      where: { nombre: 'Fundación B' },
+      update: {},
+      create: { nombre: 'Fundación B', docenteResponsable: 'Lic. Soto' },
+    }),
+  ]);
+
   const socios = await Promise.all([
     prisma.socioComunitario.upsert({
       where: { nombre: 'Comunidad A' },
       update: {},
       create: { nombre: 'Comunidad A' },
     }),
-    prisma.socioComunitario.upsert({
-      where: { nombre: 'Comunidad B' },
-      update: {},
-      create: { nombre: 'Comunidad B' },
-    }),
-    prisma.socioComunitario.upsert({
-      where: { nombre: 'Comunidad C' },
-      update: {},
-      create: { nombre: 'Comunidad C' },
-    }),
   ]);
 
-  // Crear Proyectos
   const proyectos = await Promise.all([
     prisma.proyecto.upsert({
-      where: { nombre: 'Proyecto 1' },
+      where: { nombre: 'Proyecto Vida Activa' },
       update: {},
-      create: { nombre: 'Proyecto 1', descripcion: 'Primer proyecto', fechaInicio: new Date() },
-    }),
-    prisma.proyecto.upsert({
-      where: { nombre: 'Proyecto 2' },
-      update: {},
-      create: { nombre: 'Proyecto 2', descripcion: 'Segundo proyecto', fechaInicio: new Date() },
-    }),
-    prisma.proyecto.upsert({
-      where: { nombre: 'Proyecto 3' },
-      update: {},
-      create: { nombre: 'Proyecto 3', descripcion: 'Tercer proyecto', fechaInicio: new Date() },
+      create: {
+        nombre: 'Proyecto Vida Activa',
+        descripcion: 'Promoción de la salud física',
+        fechaInicio: now,
+        fechaFin: new Date(now.getTime() + 30 * 86400000),
+      },
     }),
   ]);
 
-  // Crear 10 actividades
-  for (let i = 1; i <= 10; i++) {
-    const usuarioRandom = usuarios[Math.floor(Math.random() * usuarios.length)];
-    const tipoRandom = tiposActividad[Math.floor(Math.random() * tiposActividad.length)];
-    const socioRandom = socios[Math.floor(Math.random() * socios.length)];
-    const proyectoRandom = proyectos[Math.floor(Math.random() * proyectos.length)];
+  return { tiposActividad, lugares, oferentes, socios, proyectos };
+}
 
-    await prisma.actividad.create({
+async function crearActividadesYRelacionar(usuarios, catalogos) {
+  const actividades = [];
+
+  for (let i = 1; i <= 5; i++) {
+    const actividad = await prisma.actividad.create({
       data: {
         nombre: `Actividad ${i}`,
-        tipoActividadId: tipoRandom.id,
+        tipoActividadId: catalogos.tiposActividad[i % catalogos.tiposActividad.length].id,
         periodicidad: 'Puntual',
-        fechaInicio: new Date(),
-        fechaFin: new Date(Date.now() + 86400000),
+        fechaInicio: now,
+        fechaFin: new Date(now.getTime() + 86400000),
         cupo: 20 + i,
-        socioComunitarioId: socioRandom.id,
-        proyectoId: proyectoRandom.id,
-        estado: 'Programada',
-        creadoPorId: usuarioRandom.id,
+        socioComunitarioId: catalogos.socios[0].id,
+        proyectoId: catalogos.proyectos[0].id,
+        creadoPorId: usuarios[i % usuarios.length].id,
+      },
+    });
+    actividades.push(actividad);
+
+    // Citas
+    await prisma.cita.create({
+      data: {
+        actividadId: actividad.id,
+        lugarId: catalogos.lugares[i % catalogos.lugares.length].id,
+        fecha: now,
+        horaInicio: '10:00',
+        horaFin: '12:00',
+        creadoPorId: usuarios[i % usuarios.length].id,
+      },
+    });
+
+    // Oferentes
+    await prisma.actividadOferente.create({
+      data: {
+        actividadId: actividad.id,
+        oferenteId: catalogos.oferentes[i % catalogos.oferentes.length].id,
+      },
+    });
+
+    // Beneficiarios
+    const beneficiario = await prisma.beneficiario.create({
+      data: {
+        caracterizacion: `Beneficiario grupo ${i}`,
+      },
+    });
+
+    await prisma.actividadBeneficiario.create({
+      data: {
+        actividadId: actividad.id,
+        beneficiarioId: beneficiario.id,
+      },
+    });
+
+    // Archivos
+    await prisma.archivo.create({
+      data: {
+        nombre: `documento_${i}.pdf`,
+        ruta: `/uploads/doc_${i}.pdf`,
+        tipo: 'application/pdf',
+        tamano: 1024,
+        tipoAdjunto: 'Evidencia',
+        actividadId: actividad.id,
+        cargadoPorId: usuarios[i % usuarios.length].id,
+        descripcion: 'Archivo subido como evidencia',
       },
     });
   }
 
-  console.log('✅ Seed completado: 5 usuarios, 13 permisos, 10 actividades y catálogos creados.');
+  return actividades;
+}
+
+async function main() {
+  console.log('🌱 Iniciando seed...');
+
+  const usuarios = await crearUsuarios();
+  const catalogos = await crearCatalogos();
+  const actividades = await crearActividadesYRelacionar(usuarios, catalogos);
+
+  console.log(`✅ Seed completado: ${usuarios.length} usuarios, ${actividades.length} actividades.`);
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Error en seed:', e);
+    console.error('❌ Error durante el seed:', e);
     process.exit(1);
   })
   .finally(async () => {
