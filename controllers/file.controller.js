@@ -11,7 +11,7 @@ export async function uploadMultiple(req, res) {
   try {
     const { actividadId } = req.params;
     const { tipoAdjunto, descripcion } = req.body;
-    const usuarioId = req.user.id; // capturado desde el middleware auth
+    const usuarioId = req.userId; // capturado desde el middleware auth
     const files = req.files;
 
     if (!files || files.length === 0) {
