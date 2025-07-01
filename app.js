@@ -12,15 +12,18 @@ import { auth } from './middlewares/auth.middleware.js';
 import { router as authRoutes } from './routes/auth.routes.js';
 import { router as userRoutes } from './routes/user.routes.js';
 import { router as activityRoutes } from './routes/activity.routes.js';
-import { router as citaRoutes } from './routes/cita.routes.js'; 
+import { router as citaRoutes } from './routes/cita.routes.js';
 import { router as fileRoutes } from './routes/file.routes.js';
-import { router as maintenanceRoutes } from './routes/maintenance.routes.js';
+
+// 🔽 Ya no se importa maintenance.routes.js
 
 import { router as tipoActividadRoutes } from './routes/tipoActividad.routes.js';
 import { router as lugarRoutes } from './routes/lugar.routes.js';
 import { router as oferenteRoutes } from './routes/oferente.routes.js';
 import { router as socioRoutes } from './routes/socio.routes.js';
 import { router as proyectoRoutes } from './routes/proyecto.routes.js';
+import { router as reportesRoutes } from './routes/reportes.routes.js'; // <-- Importa reportes
+
 
 dotenv.config();
 
@@ -62,9 +65,10 @@ app.use('/api/users', userRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/citas', citaRoutes);
 app.use('/api/files', fileRoutes);
-app.use('/api/maintenance', maintenanceRoutes);
+app.use('/api/reportes', reportesRoutes); // <-- Agrega aquí la ruta reportes
 
-// Nuevas rutas protegidas
+// 🔽 Ya no se usa app.use('/api/maintenance', ...)
+
 app.use('/api/tipos-actividad', tipoActividadRoutes);
 app.use('/api/lugares', lugarRoutes);
 app.use('/api/oferentes', oferenteRoutes);

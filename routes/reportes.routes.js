@@ -1,8 +1,8 @@
-import express from 'express'
-import { generarReporteActividades } from '../controllers/reportes.controller.js'
+import express from 'express';
+import { generarReporteActividades } from '../controllers/reportes.controller.js';
 
-const router = express.Router()
+const router = express.Router();
 
-router.get('/actividades', generarReporteActividades)
+router.get('/actividades', generarReporteActividades);
 
-export default router
+export { router };
