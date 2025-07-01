@@ -38,7 +38,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // 🔽 Configuración CORS
 const allowedOrigins = [
-  'http://localhost:4000',
+  'http://localhost:3000',
   'https://tudominio-frontend.com', // Reemplaza por el dominio real si tienes uno
 ];
 
