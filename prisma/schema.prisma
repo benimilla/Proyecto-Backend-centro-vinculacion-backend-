@@ -20,19 +20,19 @@ model Usuario {
   permisos           PermisoUsuario[]  
   actividadesCreadas Actividad[]       @relation("UsuarioActividadesCreadas")
   archivos           Archivo[]         @relation("UsuarioArchivos")
-  asignados          PermisoUsuario[]  @relation("AsignadoPor")  // <-- Relación inversa para asignadoPor
+  asignados          PermisoUsuario[]  @relation("AsignadoPor")  // Relación inversa para asignadoPor
   citas              Cita[]            @relation("UsuarioCitas")
 }
 
 model PermisoUsuario {
-  id            Int      @id @default(autoincrement())
-  usuarioId     Int
-  permiso       String
-  fechaAsignacion DateTime @default(now())
-  asignadoPorId Int?
+  id             Int       @id @default(autoincrement())
+  usuarioId      Int
+  permiso        String
+  fechaAsignacion DateTime  @default(now())
+  asignadoPorId  Int?
 
-  usuario     Usuario   @relation(fields: [usuarioId], references: [id])
-  asignadoPor Usuario?  @relation("AsignadoPor", fields: [asignadoPorId], references: [id])
+  usuario        Usuario   @relation(fields: [usuarioId], references: [id])
+  asignadoPor    Usuario?  @relation("AsignadoPor", fields: [asignadoPorId], references: [id])
   
   @@unique([usuarioId, permiso])
 }
@@ -44,7 +44,6 @@ model TipoActividad {
 
   actividades Actividad[]
 }
-
 
 model Lugar {
   id     Int     @id @default(autoincrement())
@@ -65,44 +64,44 @@ model Oferente {
 }
 
 model SocioComunitario {
-  id     Int     @id @default(autoincrement())
-  nombre String  @unique
-  activo Boolean @default(true)
+  id       Int         @id @default(autoincrement())
+  nombre   String      @unique
+  activo   Boolean     @default(true)
 
   actividades Actividad[]
 }
 
 model Proyecto {
-  id          Int      @id @default(autoincrement())
-  nombre      String   @unique
+  id          Int       @id @default(autoincrement())
+  nombre      String    @unique
   descripcion String?
   fechaInicio DateTime
   fechaFin    DateTime?
-  activo      Boolean  @default(true)
+  activo      Boolean   @default(true)
 
   actividades Actividad[]
 }
 
 model Actividad {
-  id                       Int                  @id @default(autoincrement())
-  nombre                   String
-  tipoActividadId          Int
-  tipoActividad            TipoActividad        @relation(fields: [tipoActividadId], references: [id])
-  periodicidad             Periodicidad
-  fechaInicio              DateTime
-  fechaFin                 DateTime?
-  cupo                     Int?
-  socioComunitarioId       Int
-  socioComunitario         SocioComunitario     @relation(fields: [socioComunitarioId], references: [id])
-  proyectoId               Int?
-  proyecto                 Proyecto?            @relation(fields: [proyectoId], references: [id])
-  estado EstadoActividad   @default             (Programada)
-  fechaCreacion            DateTime             @default(now())
-  creadoPorId              Int
-  creadoPor                Usuario              @relation("UsuarioActividadesCreadas", fields: [creadoPorId], references: [id])
+  id                 Int                  @id @default(autoincrement())
+  nombre             String
+  tipoActividadId    Int
+  tipoActividad      TipoActividad        @relation(fields: [tipoActividadId], references: [id])
+  periodicidad       Periodicidad
+  fechaInicio        DateTime
+  fechaFin           DateTime?
+  cupo               Int?
+  socioComunitarioId Int
+  socioComunitario   SocioComunitario     @relation(fields: [socioComunitarioId], references: [id])
+  proyectoId         Int?
+  proyecto           Proyecto?            @relation(fields: [proyectoId], references: [id])
+  estado             EstadoActividad      @default(Programada)
+  fechaCreacion      DateTime             @default(now())
+  creadoPorId        Int
+  creadoPor          Usuario              @relation("UsuarioActividadesCreadas", fields: [creadoPorId], references: [id])
 
-  archivos                 Archivo[]
-  citas                    Cita[]               @relation("ActividadCitas")
+  archivos           Archivo[]
+  citas              Cita[]               @relation("ActividadCitas")
   actividadesBeneficiarios ActividadBeneficiario[]
   actividadesOferentes     ActividadOferente[]  @relation("ActividadOferentes")
 }
@@ -119,20 +118,20 @@ enum Periodicidad {
 }
 
 model Cita {
-  id              Int       @id @default(autoincrement())
-  actividadId     Int
-  lugarId         Int
-  fecha           DateTime
-  horaInicio      String
-  horaFin         String?
-  estado          EstadoCita @default(Programada)
+  id                Int       @id @default(autoincrement())
+  actividadId       Int
+  lugarId           Int
+  fecha             DateTime
+  horaInicio        String
+  horaFin           String?
+  estado            EstadoCita  @default(Programada)
   motivoCancelacion String?
-  fechaCreacion   DateTime  @default(now())
-  creadoPorId     Int
+  fechaCreacion     DateTime  @default(now())
+  creadoPorId       Int
 
-  actividad       Actividad @relation("ActividadCitas", fields: [actividadId], references: [id])
-  lugar           Lugar     @relation(fields: [lugarId], references: [id])
-  creadoPor       Usuario   @relation("UsuarioCitas", fields: [creadoPorId], references: [id])
+  actividad         Actividad @relation("ActividadCitas", fields: [actividadId], references: [id])
+  lugar             Lugar     @relation(fields: [lugarId], references: [id])
+  creadoPor         Usuario   @relation("UsuarioCitas", fields: [creadoPorId], references: [id])
 }
 
 enum EstadoCita {
@@ -151,18 +150,18 @@ model ActividadOferente {
 }
 
 model ActividadBeneficiario {
-  actividadId   Int
+  actividadId    Int
   beneficiarioId Int
-  actividad     Actividad    @relation(fields: [actividadId], references: [id])
-  beneficiario  Beneficiario @relation(fields: [beneficiarioId], references: [id])
+  actividad      Actividad    @relation(fields: [actividadId], references: [id])
+  beneficiario   Beneficiario @relation(fields: [beneficiarioId], references: [id])
 
   @@id([actividadId, beneficiarioId])
 }
 
 model Beneficiario {
-  id               Int                     @id @default(autoincrement())
-  caracterizacion  String
-  activo           Boolean                 @default(true)
+  id                      Int                     @id @default(autoincrement())
+  caracterizacion         String
+  activo                  Boolean                 @default(true)
 
   actividadesBeneficiarios ActividadBeneficiario[]
 }
