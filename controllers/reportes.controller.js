@@ -6,40 +6,67 @@ import { Readable } from 'stream'
 import { format as formatCsv } from 'fast-csv'
 
 export async function generarReporteActividades(req, res) {
-  const { fechaInicio, fechaFin, tipo, formato = 'pdf' } = req.query
+  const { fechaInicio, fechaFin, tipo, lugar, oferente, formato = 'pdf' } = req.query
+
+  if (!fechaInicio || !fechaFin) {
+    return res.status(400).send('Debe proporcionar fechaInicio y fechaFin')
+  }
 
   try {
     const actividades = await prisma.cita.findMany({
       where: {
         fecha: {
           gte: new Date(fechaInicio),
-          lte: new Date(fechaFin)
+          lte: new Date(fechaFin),
         },
-        actividad: tipo ? { tipoActividadId: tipo } : undefined
+        lugarId: lugar ? Number(lugar) : undefined,
+        actividad: {
+          tipoActividadId: tipo ? Number(tipo) : undefined,
+          actividadesOferentes: oferente ? {
+            some: {
+              oferenteId: Number(oferente),
+            }
+          } : undefined,
+        },
       },
       include: {
         actividad: {
           include: {
-            lugar: true,
-            oferente: true
+            tipoActividad: true,
+            actividadesOferentes: {
+              include: {
+                oferente: true,
+              }
+            }
           }
-        }
+        },
+        lugar: true,
       }
     })
 
-    const data = actividades.map(cita => ({
-      titulo: cita.actividad.nombre,
-      tipo: cita.actividad.tipo,
-      lugar: cita.actividad.lugar?.nombre || 'N/A',
-      oferente: cita.actividad.oferente?.nombre || 'N/A',
-      fecha: format(new Date(cita.fecha), 'yyyy-MM-dd'),
-      horaInicio: cita.horaInicio,
-      horaFin: cita.horaFin
-    }))
+    // Preparar datos
+    const data = actividades.map(cita => {
+      const oferentes = cita.actividad.actividadesOferentes.map(ao => ao.oferente.nombre).join(', ')
+      return {
+        titulo: cita.actividad.nombre,
+        tipo: cita.actividad.tipoActividad?.nombre || 'N/A',
+        lugar: cita.lugar?.nombre || 'N/A',
+        oferente: oferentes || 'N/A',
+        fecha: format(new Date(cita.fecha), 'yyyy-MM-dd'),
+        horaInicio: cita.horaInicio,
+        horaFin: cita.horaFin || 'N/A',
+      }
+    })
 
-    if (formato === 'pdf') return generarPDF(data, res)
-    if (formato === 'xlsx') return generarExcel(data, res)
-    if (formato === 'csv') return generarCSV(data, res)
+    // Nombre dinámico del archivo con filtros
+    let nombreArchivo = `reporte_actividades_${fechaInicio}_a_${fechaFin}`
+    if (tipo) nombreArchivo += `_tipo_${tipo}`
+    if (lugar) nombreArchivo += `_lugar_${lugar}`
+    if (oferente) nombreArchivo += `_oferente_${oferente}`
+
+    if (formato === 'pdf') return generarPDF(data, res, nombreArchivo + '.pdf')
+    if (formato === 'xlsx') return generarExcel(data, res, nombreArchivo + '.xlsx')
+    if (formato === 'csv') return generarCSV(data, res, nombreArchivo + '.csv')
 
     return res.status(400).send('Formato no soportado')
   } catch (err) {
@@ -49,9 +76,9 @@ export async function generarReporteActividades(req, res) {
 }
 
 // ------------------------- PDF -------------------------
-function generarPDF(data, res) {
+function generarPDF(data, res, nombreArchivo) {
   const doc = new PDFDocument()
-  res.setHeader('Content-Disposition', 'attachment; filename="reporte_actividades.pdf"')
+  res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo}"`)
   res.setHeader('Content-Type', 'application/pdf')
   doc.pipe(res)
 
@@ -61,7 +88,7 @@ function generarPDF(data, res) {
   data.forEach((item) => {
     doc.fontSize(12).text(`• ${item.fecha} - ${item.titulo}`)
     doc.text(`  Tipo: ${item.tipo} | Lugar: ${item.lugar} | Oferente: ${item.oferente}`)
-    doc.text(`  Hora: ${item.horaInicio} - ${item.horaFin || 'N/A'}`)
+    doc.text(`  Hora: ${item.horaInicio} - ${item.horaFin}`)
     doc.moveDown()
   })
 
@@ -69,7 +96,7 @@ function generarPDF(data, res) {
 }
 
 // ------------------------- Excel -------------------------
-function generarExcel(data, res) {
+function generarExcel(data, res, nombreArchivo) {
   const workbook = new ExcelJS.Workbook()
   const sheet = workbook.addWorksheet('Actividades')
 
@@ -85,15 +112,15 @@ function generarExcel(data, res) {
 
   sheet.addRows(data)
 
-  res.setHeader('Content-Disposition', 'attachment; filename="reporte_actividades.xlsx"')
+  res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo}"`)
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
   workbook.xlsx.write(res).then(() => res.end())
 }
 
 // ------------------------- CSV -------------------------
-function generarCSV(data, res) {
-  res.setHeader('Content-Disposition', 'attachment; filename="reporte_actividades.csv"')
+function generarCSV(data, res, nombreArchivo) {
+  res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo}"`)
   res.setHeader('Content-Type', 'text/csv')
 
   const csvStream = formatCsv({ headers: true })
