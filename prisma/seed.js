@@ -118,9 +118,9 @@ async function crearActividadesYRelacionar(usuarios, catalogos) {
   const actividades = [];
 
   for (let i = 1; i <= 5; i++) {
-    // 🗓️ Fechas únicas para cada actividad
-    const fechaInicio = new Date(now.getTime() + i * 86400000); // i días después de now
-    const fechaFin = new Date(fechaInicio.getTime() + (i + 1) * 3600000); // duración de (i+1) horas
+    // ✅ FECHAS DISTINTAS PARA CADA ACTIVIDAD
+    const fechaInicio = new Date(Date.now() + i * 86400000); // hoy + i días
+    const fechaFin = new Date(fechaInicio.getTime() + (2 * 60 * 60 * 1000)); // +2 horas
 
     const actividad = await prisma.actividad.create({
       data: {
@@ -135,10 +135,8 @@ async function crearActividadesYRelacionar(usuarios, catalogos) {
         creadoPorId: usuarios[i % usuarios.length].id,
       },
     });
-
     actividades.push(actividad);
 
-    // 📅 Cita con la misma fecha que la actividad
     await prisma.cita.create({
       data: {
         actividadId: actividad.id,
@@ -150,7 +148,6 @@ async function crearActividadesYRelacionar(usuarios, catalogos) {
       },
     });
 
-    // 👥 Oferente
     await prisma.actividadOferente.create({
       data: {
         actividadId: actividad.id,
@@ -158,7 +155,6 @@ async function crearActividadesYRelacionar(usuarios, catalogos) {
       },
     });
 
-    // 🙋 Beneficiario
     const beneficiario = await prisma.beneficiario.create({
       data: {
         caracterizacion: `Beneficiario grupo ${i}`,
@@ -172,7 +168,6 @@ async function crearActividadesYRelacionar(usuarios, catalogos) {
       },
     });
 
-    // 📎 Archivo
     await prisma.archivo.create({
       data: {
         nombre: `documento_${i}.pdf`,
