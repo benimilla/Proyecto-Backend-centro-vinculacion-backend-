@@ -1,31 +1,30 @@
+// middlewares/auth.middleware.js
 import jwt from 'jsonwebtoken';
+import { prisma } from '../config/db.js';
 
-const { JWT_SECRET } = process.env;
-
-export function auth(req, res, next) {
+export async function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader) {
-    return res.status(401).json({ error: 'No token provided' });
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Token no proporcionado' });
   }
 
   const token = authHeader.split(' ')[1];
 
-  if (!token) {
-    return res.status(401).json({ error: 'Token malformado' });
-  }
-
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Guardamos el objeto decodificado completo para acceso general
-    req.user = decoded;
+    const usuario = await prisma.usuario.findUnique({
+      where: { id: decoded.id },
+    });
 
-    // Y también userId directo para conveniencia
-    req.userId = decoded.userId;
+    if (!usuario) {
+      return res.status(401).json({ error: 'Usuario no encontrado' });
+    }
 
+    req.user = usuario;
     next();
-  } catch (err) {
-    return res.status(401).json({ error: 'Token inválido o expirado' });
+  } catch (error) {
+    res.status(401).json({ error: 'Token inválido' });
   }
 }
