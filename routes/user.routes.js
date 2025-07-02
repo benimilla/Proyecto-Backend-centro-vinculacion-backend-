@@ -12,12 +12,19 @@ import { hasPermission } from '../middlewares/permissions.middleware.js';
 
 const router = express.Router();
 
-// Crear usuario (solo admin)
-router.post('/', auth, hasPermission('admin'), create);
+// Crear usuario (requiere permiso 'crear_usuario')
+router.post('/', auth, hasPermission('crear_usuario'), create);
 
-router.get('/', auth, hasPermission('admin'), getAll);
-router.get('/:id', auth, getById); // acceso general con auth
-router.put('/:id', auth, update);  // acceso general con auth
-router.delete('/:id', auth, hasPermission('admin'), remove);
+// Obtener todos los usuarios (requiere permiso 'ver_usuarios')
+router.get('/', auth, hasPermission('ver_usuarios'), getAll);
+
+// Obtener usuario por ID (requiere estar autenticado, no permiso específico)
+router.get('/:id', auth, getById);
+
+// Actualizar usuario (requiere permiso 'editar_usuario')
+router.put('/:id', auth, hasPermission('editar_usuario'), update);
+
+// Eliminar usuario (requiere permiso 'eliminar_usuario')
+router.delete('/:id', auth, hasPermission('eliminar_usuario'), remove);
 
 export { router };
