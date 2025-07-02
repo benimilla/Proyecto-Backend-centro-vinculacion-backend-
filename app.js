@@ -10,7 +10,6 @@ import { fileURLToPath } from 'url';
 
 import * as logger from './utils/logger.js';
 import { auth } from './middlewares/auth.middleware.js';
-import { hasPermission } from './middlewares/permissions.middleware.js';
 
 import { router as authRoutes } from './routes/auth.routes.js';
 import { router as userRoutes } from './routes/user.routes.js';
@@ -42,7 +41,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Configuración CORS
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://tudominio-frontend.com', // Cambia por el dominio real si tienes uno
+  'https://tudominio-frontend.com',
 ];
 
 app.use(cors({
@@ -62,13 +61,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Rutas públicas sin autenticación
-app.use('/api/auth', auth);
+// ✅ Rutas públicas (sin autenticación)
+app.use('/api/auth', authRoutes);
 
-// Middleware de autenticación para rutas protegidas
+// 🔐 Middleware de autenticación (aplica a todas las rutas siguientes)
 app.use(auth);
 
-// Rutas protegidas
+// ✅ Rutas protegidas (requieren token JWT válido)
 app.use('/api/users', userRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/citas', citaRoutes);
@@ -82,17 +81,18 @@ app.use('/api/proyectos', proyectoRoutes);
 app.use('/api/permissions', permissionsRoutes);
 app.use('/api/permisousuario', permisousuarioRoutes);
 
-// 404 - Endpoint no encontrado
+// ❌ Ruta no encontrada
 app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint no encontrado' });
 });
 
-// Manejador de errores
+// ⚠️ Manejador de errores generales
 app.use((err, req, res, next) => {
   (logger.error || logger.default?.error)(err.stack || err.message || 'Error desconocido');
   res.status(err.status || 500).json({ error: err.message || 'Error interno del servidor' });
 });
 
+// 🚀 Iniciar servidor
 app.listen(PORT, () => {
   console.log(`✅ Servidor corriendo en puerto ${PORT}`);
 });
