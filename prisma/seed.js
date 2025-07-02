@@ -5,6 +5,24 @@ const now = new Date();
 const random = () => Math.floor(Math.random() * 10000);
 
 async function crearUsuarios() {
+  // ✅ Crear dos usuarios admin
+  const admin1 = await prisma.usuario.create({
+    data: {
+      nombre: 'Admin Principal',
+      email: 'admin@gmail.com',
+      password: 'admin123', // 🔒 Hashear en producción
+    },
+  });
+
+  const admin2 = await prisma.usuario.create({
+    data: {
+      nombre: 'Super Admin',
+      email: 'superadmin@example.com',
+      password: 'super123', // 🔒 Hashear en producción
+    },
+  });
+
+  // ✅ Crear otros usuarios normales
   const usuarios = await Promise.all([
     prisma.usuario.create({
       data: {
@@ -29,25 +47,32 @@ async function crearUsuarios() {
     }),
   ]);
 
+  // ✅ Lista de permisos relevantes
   const permisos = [
     'crear_usuario', 'editar_usuario', 'eliminar_usuario', 'ver_usuarios',
     'asignar_permisos', 'crear_actividad', 'editar_actividad', 'eliminar_actividad',
     'ver_actividades', 'cargar_archivo', 'eliminar_archivo', 'crear_cita', 'cancelar_cita',
   ];
 
-  await Promise.all(
-    permisos.map((permiso) =>
-      prisma.permisoUsuario.create({
-        data: {
-          usuarioId: usuarios[0].id,
-          permiso,
-          asignadoPorId: usuarios[0].id,
-        },
-      })
-    )
-  );
+  // ✅ Asignar todos los permisos a ambos admins
+  const asignarPermisosAdmin = async (admin) => {
+    await Promise.all(
+      permisos.map((permiso) =>
+        prisma.permisoUsuario.create({
+          data: {
+            usuarioId: admin.id,
+            permiso,
+            asignadoPorId: admin1.id, // asignados por Admin Principal
+          },
+        })
+      )
+    );
+  };
 
-  return usuarios;
+  await asignarPermisosAdmin(admin1);
+  await asignarPermisosAdmin(admin2);
+
+  return [admin1, admin2, ...usuarios];
 }
 
 async function crearCatalogos() {
@@ -118,7 +143,6 @@ async function crearActividadesYRelacionar(usuarios, catalogos) {
   const actividades = [];
 
   for (let i = 1; i <= 5; i++) {
-    // ✅ FECHAS DISTINTAS PARA CADA ACTIVIDAD
     const fechaInicio = new Date(Date.now() + i * 86400000); // hoy + i días
     const fechaFin = new Date(fechaInicio.getTime() + (2 * 60 * 60 * 1000)); // +2 horas
 
@@ -192,7 +216,7 @@ async function main() {
   const catalogos = await crearCatalogos();
   const actividades = await crearActividadesYRelacionar(usuarios, catalogos);
 
-  console.log(`✅ Seed completado: ${usuarios.length} usuarios, ${actividades.length} actividades.`);
+  console.log(`✅ Seed completado: ${usuarios.length} usuarios (incluyendo 2 admins), ${actividades.length} actividades.`);
 }
 
 main()
