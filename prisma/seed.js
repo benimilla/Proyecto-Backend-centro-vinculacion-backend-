@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 const prisma = new PrismaClient();
@@ -14,30 +15,65 @@ const permisos = [
   'ver_actividades', 'cargar_archivo', 'eliminar_archivo', 'crear_cita', 'cancelar_cita',
 ];
 
-async function crearUsuarios() {
+async function crearAdminsConPermisos() {
+  // Hashear la contraseña para ambos admins
+  const hashedPassword1 = await bcrypt.hash('admin123', 10);
+  const hashedPassword2 = await bcrypt.hash('super123', 10);
+
+  // Crear admin 1
   const admin1 = await prisma.usuario.create({
     data: {
       nombre: 'Admin Principal',
       email: 'admin@gmail.com',
-      password: 'admin123', // ⚠️ Hashear en producción
+      password: hashedPassword1,
     },
   });
 
+  // Crear admin 2
   const admin2 = await prisma.usuario.create({
     data: {
       nombre: 'Super Admin',
       email: 'superadmin@example.com',
-      password: 'super123', // ⚠️ Hashear en producción
+      password: hashedPassword2,
     },
   });
 
-  // Crear usuarios normales
+  // Asignar TODOS los permisos a admin1
+  await Promise.all(
+    permisos.map((permiso) =>
+      prisma.permisoUsuario.create({
+        data: {
+          usuarioId: admin1.id,
+          permiso,
+          asignadoPorId: admin1.id,  // el mismo admin 1 asigna sus permisos
+        },
+      })
+    )
+  );
+
+  // Asignar TODOS los permisos a admin2
+  await Promise.all(
+    permisos.map((permiso) =>
+      prisma.permisoUsuario.create({
+        data: {
+          usuarioId: admin2.id,
+          permiso,
+          asignadoPorId: admin2.id,  // el mismo admin 2 asigna sus permisos
+        },
+      })
+    )
+  );
+
+  return [admin1, admin2];
+}
+
+async function crearUsuariosNormales() {
   const usuariosNormales = await Promise.all([
     prisma.usuario.create({
       data: {
         nombre: 'Ana Torres',
         email: `ana${random()}@example.com`,
-        password: '123456',
+        password: '123456', // Puedes hashear aquí si quieres
       },
     }),
     prisma.usuario.create({
@@ -55,19 +91,7 @@ async function crearUsuarios() {
       },
     }),
   ]);
-
-  // Asignar todos los permisos a ambos admins
-  for (const permiso of permisos) {
-    // Usamos create en lugar de createMany, porque createMany no soporta asignadoPorId dinámico (según versión prisma)
-    await prisma.permisoUsuario.create({
-      data: { usuarioId: admin1.id, permiso, asignadoPorId: admin1.id },
-    });
-    await prisma.permisoUsuario.create({
-      data: { usuarioId: admin2.id, permiso, asignadoPorId: admin2.id },
-    });
-  }
-
-  return [admin1, admin2, ...usuariosNormales];
+  return usuariosNormales;
 }
 
 async function crearCatalogos() {
@@ -219,14 +243,23 @@ async function generarToken(usuario) {
 async function main() {
   console.log('🌱 Iniciando seed...');
 
-  const usuarios = await crearUsuarios();
+  // Crear admins con permisos y hashed passwords
+  const admins = await crearAdminsConPermisos();
+
+  // Crear usuarios normales (sin hash en este ejemplo, puedes agregarlo si quieres)
+  const usuariosNormales = await crearUsuariosNormales();
+
+  const usuarios = [...admins, ...usuariosNormales];
+
+  // Crear catálogos (tiposActividad, lugares, oferentes, socios, proyectos)
   const catalogos = await crearCatalogos();
+
+  // Crear actividades y relaciones usando todos los usuarios creados
   const actividades = await crearActividadesYRelacionar(usuarios, catalogos);
 
-  const [admin1, admin2] = usuarios;
-
-  const token1 = await generarToken(admin1);
-  const token2 = await generarToken(admin2);
+  // Generar tokens para los admins (solo para mostrar)
+  const token1 = await generarToken(admins[0]);
+  const token2 = await generarToken(admins[1]);
 
   console.log(`✅ Seed completado: ${usuarios.length} usuarios, ${actividades.length} actividades.`);
   console.log('🔐 Token Admin 1:', token1);
