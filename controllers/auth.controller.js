@@ -16,7 +16,10 @@ export async function register(req, res) {
       return res.status(400).json({ error: 'Este email ya está registrado' });
     }
 
+    // Hashear contraseña
     const hashed = await bcrypt.hash(password, 10);
+
+    // Crear el usuario
     const usuario = await prisma.usuario.create({
       data: {
         nombre,
@@ -25,9 +28,26 @@ export async function register(req, res) {
       }
     });
 
-    const token = signToken({ userId: usuario.id }); // sin rol
+    // Permisos por defecto
+    const permisosIniciales = ['ver_actividades', 'crear_actividad', 'crear_cita'];
+
+    // Asignar permisos por defecto
+    await Promise.all(
+      permisosIniciales.map(permiso =>
+        prisma.permisoUsuario.create({
+          data: {
+            usuarioId: usuario.id,
+            permiso
+          }
+        })
+      )
+    );
+
+    const token = signToken({ userId: usuario.id });
     res.status(201).json({ usuario, token });
+
   } catch (error) {
+    console.error('Error al registrar usuario:', error);
     res.status(500).json({ error: 'Error al registrar usuario', detalle: error.message });
   }
 }
@@ -42,7 +62,7 @@ export async function login(req, res) {
     const valid = await bcrypt.compare(password, usuario.password);
     if (!valid) return res.status(401).json({ error: 'Credenciales inválidas' });
 
-    const token = signToken({ userId: usuario.id }); // sin rol
+    const token = signToken({ userId: usuario.id });
     res.json({ usuario, token });
 
   } catch (error) {
@@ -60,7 +80,7 @@ export async function forgotPassword(req, res) {
     }
 
     const token = crypto.randomBytes(32).toString('hex');
-    const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 días
 
     await prisma.usuario.update({
       where: { email },
@@ -96,6 +116,7 @@ export async function resetPassword(req, res) {
     }
 
     const hashed = await bcrypt.hash(newPassword, 10);
+
     await prisma.usuario.update({
       where: { email },
       data: {
