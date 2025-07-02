@@ -1,6 +1,6 @@
 import express from 'express';
 import { uploadMultiple, download } from '../controllers/file.controller.js';
-import { requireAuth } from '../middlewares/auth.middleware.js';  // <-- corregido
+import { auth } from '../middlewares/auth.middleware.js';  // <-- corregido
 import multer from 'multer';
 import path from 'path';
 
@@ -19,9 +19,9 @@ const uploadMiddleware = multer({ storage });
 const router = express.Router();
 
 // Múltiples archivos, hasta 10
-router.post('/:actividadId', requireAuth, uploadMiddleware.array('files', 10), uploadMultiple);
+router.post('/:actividadId', auth, uploadMiddleware.array('files', 10), uploadMultiple);
 
 // Descarga
-router.get('/download/:filename', requireAuth, download);
+router.get('/download/:filename', auth, download);
 
 export { router };

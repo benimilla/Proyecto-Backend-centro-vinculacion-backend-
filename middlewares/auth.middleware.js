@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { prisma } from '../config/db.js';
 
-export async function requireAuth(req, res, next) {
+export async function auth(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -26,3 +26,6 @@ export async function requireAuth(req, res, next) {
     return res.status(401).json({ error: 'Token inválido o expirado' });
   }
 }
+
+export default auth
+

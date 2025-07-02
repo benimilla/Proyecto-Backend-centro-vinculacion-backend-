@@ -1,10 +1,10 @@
 import express from 'express';
 import * as citaController from '../controllers/cita.controller.js';
-import { requireAuth } from '../middlewares/auth.middleware.js';
+import { auth } from '../middlewares/auth.middleware.js';
 
 export const router = express.Router();
 
-router.use(requireAuth);
+router.use(auth);
 
 router.get('/', citaController.getAllCitas);
 router.get('/:id', citaController.getByIdCita);

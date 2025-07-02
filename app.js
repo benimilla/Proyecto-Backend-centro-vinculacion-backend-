@@ -9,7 +9,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import * as logger from './utils/logger.js';
-import { requireAuth } from './middlewares/auth.middleware.js';
+import { auth } from './middlewares/auth.middleware.js';
 import { hasPermission } from './middlewares/permissions.middleware.js';
 
 import { router as authRoutes } from './routes/auth.routes.js';
@@ -63,10 +63,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // Rutas públicas sin autenticación
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', auth);
 
 // Middleware de autenticación para rutas protegidas
-app.use(requireAuth);
+app.use(auth);
 
 // Rutas protegidas
 app.use('/api/users', userRoutes);
