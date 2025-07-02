@@ -24,6 +24,7 @@ import { router as socioRoutes } from './routes/socio.routes.js';
 import { router as proyectoRoutes } from './routes/proyecto.routes.js';
 import { router as reportesRoutes } from './routes/reportes.routes.js';
 import { router as permissionsRoutes } from './routes/permissions.routes.js';
+import { router as permisousuarioRoutes } from './routes/permisousuario.routes.js';
 
 dotenv.config();
 
@@ -79,6 +80,7 @@ app.use('/api/oferentes', oferenteRoutes);
 app.use('/api/socios', socioRoutes);
 app.use('/api/proyectos', proyectoRoutes);
 app.use('/api/permissions', permissionsRoutes);
+app.use('/api/permisousuario', permisousuarioRoutes);
 
 // 404 - Endpoint no encontrado
 app.use((req, res) => {
