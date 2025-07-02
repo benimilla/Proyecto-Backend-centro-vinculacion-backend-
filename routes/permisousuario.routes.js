@@ -1,5 +1,5 @@
 import express from 'express';
-import * as permisoController from '../controllers/permisossuario.controller.js';
+import * as permisoController from '../controllers/permisousuario.controller.js';
 import { requireAuth } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
