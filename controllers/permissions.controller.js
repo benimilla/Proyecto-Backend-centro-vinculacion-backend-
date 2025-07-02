@@ -19,6 +19,34 @@ export const listarPermisosUsuario = async (req, res) => {
   }
 };
 
+export const listarTodosLosPermisos = async (req, res) => {
+  try {
+    // Lista completa de permisos definidos en el sistema
+    const permisos = [
+      'crear_usuario',
+      'editar_usuario',
+      'eliminar_usuario',
+      'ver_usuarios',
+      'asignar_permisos',
+      'crear_actividad',
+      'editar_actividad',
+      'eliminar_actividad',
+      'ver_actividades',
+      'cargar_archivo',
+      'eliminar_archivo',
+      'crear_cita',
+      'cancelar_cita',
+      // Agrega aquí más permisos si tu sistema crece
+    ];
+
+    res.json(permisos);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al listar permisos del sistema' });
+  }
+};
+
+
+
 /**
  * Crear un permiso para un usuario
  * POST /api/permissions

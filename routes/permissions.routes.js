@@ -1,21 +1,23 @@
 import express from 'express';
-import { auth } from '../middlewares/auth.middleware.js';
-import { hasPermission } from '../middlewares/permissions.middleware.js';
 import {
   listarPermisosUsuario,
   crearPermiso,
   eliminarPermiso,
+  listarTodosLosPermisos
 } from '../controllers/permissions.controller.js';
 
 const router = express.Router();
 
-// Listar permisos de un usuario (requiere estar autenticado y permiso 'ver_permisos')
-router.get('/:usuarioId', auth, hasPermission('ver_permisos'), listarPermisosUsuario);
+// Listar todos los permisos del sistema
+router.get('/', listarTodosLosPermisos);
 
-// Crear permiso (requiere permiso 'asignar_permisos')
-router.post('/', auth, hasPermission('asignar_permisos'), crearPermiso);
+// Listar permisos de un usuario
+router.get('/:usuarioId', listarPermisosUsuario);
 
-// Eliminar permiso (requiere permiso 'eliminar_permisos')
-router.delete('/:id', auth, hasPermission('eliminar_permisos'), eliminarPermiso);
+// Crear un nuevo permiso para un usuario
+router.post('/', crearPermiso);
+
+// Eliminar un permiso de usuario
+router.delete('/:id', eliminarPermiso);
 
 export { router };
