@@ -1,16 +1,19 @@
 import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+import jwt from 'jsonwebtoken';
 
+const prisma = new PrismaClient();
 const now = new Date();
 const random = () => Math.floor(Math.random() * 10000);
 
+// 🔐 Clave secreta (igual a la del backend)
+const JWT_SECRET = process.env.JWT_SECRET || 'mi_secreto_super_seguro';
+
 async function crearUsuarios() {
-  // ✅ Crear dos usuarios admin
   const admin1 = await prisma.usuario.create({
     data: {
       nombre: 'Admin Principal',
       email: 'admin@gmail.com',
-      password: 'admin123', // 🔒 Hashear en producción
+      password: 'admin123', // ⚠️ Hashear en producción
     },
   });
 
@@ -18,12 +21,11 @@ async function crearUsuarios() {
     data: {
       nombre: 'Super Admin',
       email: 'superadmin@example.com',
-      password: 'super123', // 🔒 Hashear en producción
+      password: 'super123', // ⚠️ Hashear en producción
     },
   });
 
-  // ✅ Crear otros usuarios normales
-  const usuarios = await Promise.all([
+  const usuariosNormales = await Promise.all([
     prisma.usuario.create({
       data: {
         nombre: 'Ana Torres',
@@ -47,32 +49,23 @@ async function crearUsuarios() {
     }),
   ]);
 
-  // ✅ Lista de permisos relevantes
   const permisos = [
     'crear_usuario', 'editar_usuario', 'eliminar_usuario', 'ver_usuarios',
     'asignar_permisos', 'crear_actividad', 'editar_actividad', 'eliminar_actividad',
     'ver_actividades', 'cargar_archivo', 'eliminar_archivo', 'crear_cita', 'cancelar_cita',
   ];
 
-  // ✅ Asignar todos los permisos a ambos admins
-  const asignarPermisosAdmin = async (admin) => {
-    await Promise.all(
-      permisos.map((permiso) =>
-        prisma.permisoUsuario.create({
-          data: {
-            usuarioId: admin.id,
-            permiso,
-            asignadoPorId: admin1.id, // asignados por Admin Principal
-          },
-        })
-      )
-    );
-  };
+  // Asignar todos los permisos a ambos admins
+  for (const permiso of permisos) {
+    await prisma.permisoUsuario.createMany({
+      data: [
+        { usuarioId: admin1.id, permiso, asignadoPorId: admin1.id },
+        { usuarioId: admin2.id, permiso, asignadoPorId: admin1.id },
+      ],
+    });
+  }
 
-  await asignarPermisosAdmin(admin1);
-  await asignarPermisosAdmin(admin2);
-
-  return [admin1, admin2, ...usuarios];
+  return [admin1, admin2, ...usuariosNormales];
 }
 
 async function crearCatalogos() {
@@ -143,8 +136,8 @@ async function crearActividadesYRelacionar(usuarios, catalogos) {
   const actividades = [];
 
   for (let i = 1; i <= 5; i++) {
-    const fechaInicio = new Date(Date.now() + i * 86400000); // hoy + i días
-    const fechaFin = new Date(fechaInicio.getTime() + (2 * 60 * 60 * 1000)); // +2 horas
+    const fechaInicio = new Date(Date.now() + i * 86400000);
+    const fechaFin = new Date(fechaInicio.getTime() + (2 * 60 * 60 * 1000));
 
     const actividad = await prisma.actividad.create({
       data: {
@@ -209,6 +202,18 @@ async function crearActividadesYRelacionar(usuarios, catalogos) {
   return actividades;
 }
 
+async function generarToken(usuario) {
+  return jwt.sign(
+    {
+      id: usuario.id,
+      email: usuario.email,
+      nombre: usuario.nombre,
+    },
+    JWT_SECRET,
+    { expiresIn: '2h' }
+  );
+}
+
 async function main() {
   console.log('🌱 Iniciando seed...');
 
@@ -216,7 +221,14 @@ async function main() {
   const catalogos = await crearCatalogos();
   const actividades = await crearActividadesYRelacionar(usuarios, catalogos);
 
-  console.log(`✅ Seed completado: ${usuarios.length} usuarios (incluyendo 2 admins), ${actividades.length} actividades.`);
+  const [admin1, admin2] = usuarios;
+
+  const token1 = await generarToken(admin1);
+  const token2 = await generarToken(admin2);
+
+  console.log(`✅ Seed completado: ${usuarios.length} usuarios, ${actividades.length} actividades.`);
+  console.log('🔐 Token Admin 1:', token1);
+  console.log('🔐 Token Admin 2:', token2);
 }
 
 main()
