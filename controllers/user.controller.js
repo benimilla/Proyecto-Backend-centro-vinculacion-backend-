@@ -33,14 +33,16 @@ export async function create(req, res) {
       return res.status(400).json({ error: 'Nombre, email y password son obligatorios' });
     }
 
-    // Opcional: validar email único manualmente
+    // Validar email único
     const existente = await prisma.usuario.findUnique({ where: { email } });
     if (existente) {
       return res.status(400).json({ error: 'El email ya está registrado' });
     }
 
+    // Hashear contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Crear el usuario
     const usuario = await prisma.usuario.create({
       data: {
         nombre,
@@ -48,6 +50,21 @@ export async function create(req, res) {
         password: hashedPassword,
       }
     });
+
+    // Asignar permisos por defecto al nuevo usuario
+    const permisosIniciales = ['ver_actividades', 'crear_actividad', 'crear_cita'];
+
+    await Promise.all(
+      permisosIniciales.map((permiso) =>
+        prisma.permisoUsuario.create({
+          data: {
+            usuarioId: usuario.id,
+            permiso,
+            asignadoPorId: null, // puedes poner aquí el id del admin si lo tienes
+          },
+        })
+      )
+    );
 
     res.status(201).json(usuario);
   } catch (error) {
