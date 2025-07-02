@@ -9,7 +9,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import * as logger from './utils/logger.js';
-import { auth } from './middlewares/auth.middleware.js';
+import { requireAuth } from './middlewares/auth.middleware.js';
 import { hasPermission } from './middlewares/permissions.middleware.js';
 
 import { router as authRoutes } from './routes/auth.routes.js';
@@ -25,21 +25,20 @@ import { router as proyectoRoutes } from './routes/proyecto.routes.js';
 import { router as reportesRoutes } from './routes/reportes.routes.js';
 import { router as permissionsRoutes } from './routes/permissions.routes.js';
 
-
 dotenv.config();
 
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 4000;
 
-// 🔽 Configurar __dirname para ESModules
+// Configurar __dirname para ESModules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 🔽 Servir carpeta /uploads de forma pública
+// Servir carpeta /uploads de forma pública
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// 🔽 Configuración CORS
+// Configuración CORS
 const allowedOrigins = [
   'http://localhost:3000',
   'https://tudominio-frontend.com', // Cambia por el dominio real si tienes uno
@@ -62,13 +61,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// 🔽 Rutas públicas sin autenticación
+// Rutas públicas sin autenticación
 app.use('/api/auth', authRoutes);
 
-// 🔽 Middleware de autenticación para rutas protegidas
-app.use(auth);
+// Middleware de autenticación para rutas protegidas
+app.use(requireAuth);
 
-// 🔽 Rutas protegidas
+// Rutas protegidas
 app.use('/api/users', userRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/citas', citaRoutes);
@@ -79,14 +78,14 @@ app.use('/api/lugares', lugarRoutes);
 app.use('/api/oferentes', oferenteRoutes);
 app.use('/api/socios', socioRoutes);
 app.use('/api/proyectos', proyectoRoutes);
-app.use('/api/permissions', permissionsRoutes);  // <-- Rutas para permisos
+app.use('/api/permissions', permissionsRoutes);
 
-// 🔽 404 - Endpoint no encontrado
+// 404 - Endpoint no encontrado
 app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint no encontrado' });
 });
 
-// 🔽 Manejador de errores
+// Manejador de errores
 app.use((err, req, res, next) => {
   (logger.error || logger.default?.error)(err.stack || err.message || 'Error desconocido');
   res.status(err.status || 500).json({ error: err.message || 'Error interno del servidor' });
