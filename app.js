@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 
 import * as logger from './utils/logger.js';
 import { auth } from './middlewares/auth.middleware.js';
+import { hasPermission } from './middlewares/permissions.middleware.js';
 
 import { router as authRoutes } from './routes/auth.routes.js';
 import { router as userRoutes } from './routes/user.routes.js';
@@ -22,6 +23,8 @@ import { router as oferenteRoutes } from './routes/oferente.routes.js';
 import { router as socioRoutes } from './routes/socio.routes.js';
 import { router as proyectoRoutes } from './routes/proyecto.routes.js';
 import { router as reportesRoutes } from './routes/reportes.routes.js';
+import { router as permissionsRoutes } from './routes/permissions.routes.js';
+
 
 dotenv.config();
 
@@ -39,7 +42,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // 🔽 Configuración CORS
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://tudominio-frontend.com', // Reemplaza por el dominio real si tienes uno
+  'https://tudominio-frontend.com', // Cambia por el dominio real si tienes uno
 ];
 
 app.use(cors({
@@ -76,6 +79,7 @@ app.use('/api/lugares', lugarRoutes);
 app.use('/api/oferentes', oferenteRoutes);
 app.use('/api/socios', socioRoutes);
 app.use('/api/proyectos', proyectoRoutes);
+app.use('/api/permissions', permissionsRoutes);  // <-- Rutas para permisos
 
 // 🔽 404 - Endpoint no encontrado
 app.use((req, res) => {
