@@ -25,7 +25,7 @@ router.get('/:actividadId', auth, getArchivosPorActividad);
 router.post('/:actividadId', auth, uploadMiddleware.array('files', 10), uploadMultiple);
 
 // ✅ Descargar archivo
-router.get('/download/:filename', download);
+
 export { router };
 
 //aaa
