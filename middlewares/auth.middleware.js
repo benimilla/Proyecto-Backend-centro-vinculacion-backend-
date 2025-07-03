@@ -1,3 +1,6 @@
+import jwt from 'jsonwebtoken';
+import { prisma } from '../config/db.js';
+
 export async function auth(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
@@ -9,7 +12,7 @@ export async function auth(req, res, next) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     const usuario = await prisma.usuario.findUnique({
-      where: { id: decoded.userId },
+      where: { id: decoded.userId }, // ✅ usar decoded.userId
       select: { id: true, nombre: true, email: true },
     });
 
@@ -17,14 +20,11 @@ export async function auth(req, res, next) {
       return res.status(401).json({ error: 'Usuario no encontrado' });
     }
 
-    // Aquí asignamos userId para que concuerde con lo que usas en controladores
-    req.user = {
-      userId: usuario.id,
-      nombre: usuario.nombre,
-      email: usuario.email,
-    };
+    req.user = usuario;
     next();
   } catch (error) {
     return res.status(401).json({ error: 'Token inválido o expirado' });
   }
 }
+
+
