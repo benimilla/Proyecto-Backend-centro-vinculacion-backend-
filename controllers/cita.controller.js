@@ -79,7 +79,7 @@ export async function createCita(req, res) {
           horaInicio,
           horaFin: horaFin || null,
           estado: 'Programada',
-          creadoPorId: req.user.userId,
+          creadoPorId: req.user.id,
         },
       });
       return res.status(201).json({ message: 'Cita puntual creada exitosamente', cita });
@@ -115,7 +115,7 @@ export async function createCita(req, res) {
           horaInicio,
           horaFin: horaFin || null,
           estado: 'Programada',
-          creadoPorId: req.user.userId,
+          creadoPorId: req.user.id,
         });
 
         currentDate.setDate(currentDate.getDate() + 1); 
