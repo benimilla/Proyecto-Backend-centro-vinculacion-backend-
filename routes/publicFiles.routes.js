@@ -5,4 +5,4 @@ const router = express.Router();
 
 router.get('/:filename', download);
 
-export { router };
+export { router as publicFiles }; // 👈 Así ase
