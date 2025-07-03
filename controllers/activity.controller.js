@@ -38,18 +38,18 @@ export async function create(req, res) {
     }
 
     const actividad = await prisma.actividad.create({
-      data: {
-        nombre,
-        tipoActividadId,
-        periodicidad,
-        fechaInicio: inicio,
-        fechaFin: finActividad,
-        socioComunitarioId,
-        proyectoId: proyectoId || null,
-        cupo: cupo ?? undefined,
-        creadoPorId: req.user.userId,  // <-- aquí se cambió
-        estado: 'Programada',
-      },
+  data: {
+    nombre,
+    tipoActividadId,
+    periodicidad,
+    fechaInicio: inicio,
+    fechaFin: finActividad,
+    socioComunitarioId,
+    proyectoId: proyectoId || null,
+    cupo: cupo ?? undefined,
+    creadoPorId: req.user.id,  // <--- aquí va req.user.id
+    estado: 'Programada',
+    },
     });
 
     return res.status(201).json({ message: 'Actividad creada exitosamente', actividad });
