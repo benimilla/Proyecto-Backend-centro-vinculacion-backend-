@@ -16,3 +16,5 @@ transporter.verify()
   .catch((err) => console.error(' Error en la conexión de correo:', err));
 
 module.exports = transporter;
+
+//hola
