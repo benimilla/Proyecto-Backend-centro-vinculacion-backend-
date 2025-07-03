@@ -15,7 +15,7 @@ import { router as authRoutes } from './routes/auth.routes.js';
 import { router as userRoutes } from './routes/user.routes.js';
 import { router as activityRoutes } from './routes/activity.routes.js';
 import { router as citaRoutes } from './routes/cita.routes.js';
-import { router as fileRoutes } from './routes/file.routes.js';
+import { router as fileRoutes } from './routes/file.routes.js'; // ✅ Incluye subida y descarga
 import { router as tipoActividadRoutes } from './routes/tipoActividad.routes.js';
 import { router as lugarRoutes } from './routes/lugar.routes.js';
 import { router as oferenteRoutes } from './routes/oferente.routes.js';
@@ -24,7 +24,6 @@ import { router as proyectoRoutes } from './routes/proyecto.routes.js';
 import { router as reportesRoutes } from './routes/reportes.routes.js';
 import { router as permissionsRoutes } from './routes/permissions.routes.js';
 import { router as permisousuarioRoutes } from './routes/permisousuario.routes.js';
-import { router as publicFiles } from './routes/download.routes.js';
 
 dotenv.config();
 
@@ -62,16 +61,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-app.use('/api/files/download', publicFiles); 
 // 🔐 Middleware de autenticación (aplica a todas las rutas siguientes)
 app.use(auth);
-
 
 // ✅ Rutas protegidas (requieren token JWT válido)
 app.use('/api/users', userRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/citas', citaRoutes);
-app.use('/api/files', fileRoutes);
+app.use('/api/files', fileRoutes); // ✅ Maneja subida y descarga de archivos
 app.use('/api/reportes', reportesRoutes);
 app.use('/api/tipos-actividad', tipoActividadRoutes);
 app.use('/api/lugares', lugarRoutes);
