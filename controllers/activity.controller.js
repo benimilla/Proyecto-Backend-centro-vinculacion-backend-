@@ -38,18 +38,18 @@ export async function create(req, res) {
     }
 
     const actividad = await prisma.actividad.create({
-  data: {
-    nombre,
-    tipoActividadId,
-    periodicidad,
-    fechaInicio: inicio,
-    fechaFin: finActividad,
-    socioComunitarioId,
-    proyectoId: proyectoId || null,
-    cupo: cupo ?? undefined,
-    creadoPorId: req.user.id,  // <--- aquí va req.user.id
-    estado: 'Programada',
-    },
+      data: {
+        nombre,
+        tipoActividadId,
+        periodicidad,
+        fechaInicio: inicio,
+        fechaFin: finActividad,
+        socioComunitarioId,
+        proyectoId: proyectoId || null,
+        cupo: cupo ?? undefined,
+        creadoPorId: req.user.id,
+        estado: 'Programada',
+      },
     });
 
     return res.status(201).json({ message: 'Actividad creada exitosamente', actividad });
@@ -69,7 +69,7 @@ export async function update(req, res) {
     const actividad = await prisma.actividad.findUnique({ where: { id: Number(id) } });
     if (!actividad) return res.status(404).json({ error: 'Actividad no encontrada' });
 
-    if (!req.user || actividad.creadoPorId !== req.user.userId) { // <-- cambio aquí también
+    if (!req.user || actividad.creadoPorId !== req.user.id) {
       return res.status(403).json({ error: 'No tiene permisos para modificar esta actividad' });
     }
 
@@ -132,7 +132,7 @@ export async function cancel(req, res) {
       return res.status(400).json({ error: 'Debe proporcionar un motivo para la cancelación' });
     }
 
-    if (!req.user || !req.user.userId) {
+    if (!req.user || !req.user.id) {
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
@@ -149,7 +149,7 @@ export async function cancel(req, res) {
       return res.status(404).json({ error: 'Actividad no encontrada' });
     }
 
-    if (actividad.creadoPorId !== req.user.userId) {
+    if (actividad.creadoPorId !== req.user.id) {
       return res.status(403).json({ error: 'No tiene permisos para cancelar esta actividad' });
     }
 
@@ -225,7 +225,7 @@ export async function remove(req, res) {
       return res.status(404).json({ error: 'Actividad no encontrada' });
     }
 
-    if (!req.user || actividad.creadoPorId !== req.user.userId) {
+    if (!req.user || actividad.creadoPorId !== req.user.id) {
       return res.status(403).json({ error: 'No tiene permisos para eliminar esta actividad' });
     }
 
