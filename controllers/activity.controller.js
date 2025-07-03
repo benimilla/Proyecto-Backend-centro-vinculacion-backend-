@@ -33,7 +33,7 @@ export async function create(req, res) {
       return res.status(400).json({ errores });
     }
 
-    if (!req.user || !req.user.userId) {
+    if (!req.user || !req.user.id) {
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
