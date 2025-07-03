@@ -71,7 +71,7 @@ app.use('/api/files/download', (req, res, next) => {
 // 🔐 Middleware de autenticación (aplica a todas las rutas siguientes)
 app.use(auth);
 
-
+//a
 // ✅ Rutas protegidas (requieren token JWT válido)
 app.use('/api/users', userRoutes);
 app.use('/api/activities', activityRoutes);
