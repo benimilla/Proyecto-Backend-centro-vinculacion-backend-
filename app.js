@@ -64,8 +64,13 @@ app.use(cookieParser());
 // ✅ Rutas públicas (sin autenticación)
 app.use('/api/auth', authRoutes);
 
+app.use('/api/files/download', (req, res, next) => {
+  fileRoutes(req, res, next); // solo redirige a fileRoutes si es download
+})
+
 // 🔐 Middleware de autenticación (aplica a todas las rutas siguientes)
 app.use(auth);
+
 
 // ✅ Rutas protegidas (requieren token JWT válido)
 app.use('/api/users', userRoutes);
