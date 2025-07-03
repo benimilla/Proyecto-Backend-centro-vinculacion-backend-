@@ -24,6 +24,7 @@ import { router as proyectoRoutes } from './routes/proyecto.routes.js';
 import { router as reportesRoutes } from './routes/reportes.routes.js';
 import { router as permissionsRoutes } from './routes/permissions.routes.js';
 import { router as permisousuarioRoutes } from './routes/permisousuario.routes.js';
+import { router as publicFiles } from './routes/download.routes.js';
 
 dotenv.config();
 
@@ -61,17 +62,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// ✅ Rutas públicas (sin autenticación)
-app.use('/api/auth', authRoutes);
-
-app.use('/api/files/download', (req, res, next) => {
-  fileRoutes(req, res, next); // solo redirige a fileRoutes si es download
-})
-
+app.use('/api/files/download', publicFiles); 
 // 🔐 Middleware de autenticación (aplica a todas las rutas siguientes)
 app.use(auth);
 
-//a
+
 // ✅ Rutas protegidas (requieren token JWT válido)
 app.use('/api/users', userRoutes);
 app.use('/api/activities', activityRoutes);

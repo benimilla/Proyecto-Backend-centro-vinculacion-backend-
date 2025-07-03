@@ -26,6 +26,6 @@ router.post('/:actividadId', auth, uploadMiddleware.array('files', 10), uploadMu
 
 // ✅ Descargar archivo
 
-export { router };
+export { router as publicFiles }; // 👈 Así ase
 
 //aaa
