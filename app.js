@@ -15,7 +15,7 @@ import { router as authRoutes } from './routes/auth.routes.js';
 import { router as userRoutes } from './routes/user.routes.js';
 import { router as activityRoutes } from './routes/activity.routes.js';
 import { router as citaRoutes } from './routes/cita.routes.js';
-import { router as fileRoutes } from './routes/file.routes.js'; // ✅ Incluye subida y descarga
+import { router as fileRoutes } from './routes/file.routes.js';
 import { router as tipoActividadRoutes } from './routes/tipoActividad.routes.js';
 import { router as lugarRoutes } from './routes/lugar.routes.js';
 import { router as oferenteRoutes } from './routes/oferente.routes.js';
@@ -61,6 +61,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// ✅ Rutas públicas (sin autenticación)
+app.use('/api/auth', authRoutes);
+
 // 🔐 Middleware de autenticación (aplica a todas las rutas siguientes)
 app.use(auth);
 
@@ -68,7 +71,7 @@ app.use(auth);
 app.use('/api/users', userRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/citas', citaRoutes);
-app.use('/api/files', fileRoutes); // ✅ Maneja subida y descarga de archivos
+app.use('/api/files', fileRoutes);
 app.use('/api/reportes', reportesRoutes);
 app.use('/api/tipos-actividad', tipoActividadRoutes);
 app.use('/api/lugares', lugarRoutes);
