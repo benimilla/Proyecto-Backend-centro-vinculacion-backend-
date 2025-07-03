@@ -47,7 +47,7 @@ export async function create(req, res) {
         socioComunitarioId,
         proyectoId: proyectoId || null,
         cupo: cupo ?? undefined,
-        creadoPorId: req.user.userId,
+        creadoPorId: req.user.id,
         estado: 'Programada',
       },
     });
