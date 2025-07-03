@@ -5,14 +5,16 @@ export async function getAllCitas(req, res) {
   try {
     const citas = await prisma.cita.findMany({
       include: {
-        usuario: true,
         actividad: true,
-        beneficiario: true,
+        lugar: true,
+        creadoPor: true, // Esta es la relación correcta en vez de "usuario"
+        // No incluyas "beneficiario" porque no existe aquí
       },
     });
     res.json(citas);
   } catch (error) {
-    res.status(500).json({ error: 'Error al obtener citas' });
+    console.error('Error al obtener citas:', error);
+    res.status(500).json({ error: 'Error al obtener citas', detalle: error.message });
   }
 }
 
