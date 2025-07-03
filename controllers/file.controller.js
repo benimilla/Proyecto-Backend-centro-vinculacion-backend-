@@ -6,12 +6,12 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Subida múltiple
+// ✅ Subida múltiple
 export async function uploadMultiple(req, res) {
   try {
     const { actividadId } = req.params;
     const { tipoAdjunto, descripcion } = req.body;
-    const usuarioId = req.userId; // capturado desde el middleware auth
+    const usuarioId = req.userId; // desde middleware auth
     const files = req.files;
 
     if (!files || files.length === 0) {
@@ -46,12 +46,11 @@ export async function uploadMultiple(req, res) {
   }
 }
 
-// Descarga con nombre original
+// ✅ Descarga con nombre original
 export async function download(req, res) {
   try {
     const { filename } = req.params;
 
-    // Busca en BD por la ruta
     const archivo = await prisma.archivo.findFirst({
       where: {
         ruta: {
@@ -73,5 +72,26 @@ export async function download(req, res) {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al descargar archivo', detalle: error.message });
+  }
+}
+
+// ✅ Obtener todos los archivos de una actividad
+export async function getArchivosPorActividad(req, res) {
+  try {
+    const { actividadId } = req.params;
+
+    const archivos = await prisma.archivo.findMany({
+      where: {
+        actividadId: Number(actividadId),
+      },
+      orderBy: {
+        fechaCarga: 'desc',
+      },
+    });
+
+    res.json(archivos);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al obtener archivos', detalle: error.message });
   }
 }

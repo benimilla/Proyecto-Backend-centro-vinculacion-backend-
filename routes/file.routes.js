@@ -1,10 +1,12 @@
 import express from 'express';
-import { uploadMultiple, download } from '../controllers/file.controller.js';
-import { auth } from '../middlewares/auth.middleware.js';  // <-- corregido
 import multer from 'multer';
 import path from 'path';
+import { uploadMultiple, download, getArchivosPorActividad } from '../controllers/file.controller.js';
+import { auth } from '../middlewares/auth.middleware.js';
 
-// Almacenamiento con nombre único pero preserva extensión
+const router = express.Router();
+
+// 💾 Configuración de almacenamiento para multer
 const storage = multer.diskStorage({
   destination: 'uploads/',
   filename: (req, file, cb) => {
@@ -16,12 +18,13 @@ const storage = multer.diskStorage({
 
 const uploadMiddleware = multer({ storage });
 
-const router = express.Router();
+// ✅ Obtener archivos de una actividad (nuevo endpoint)
+router.get('/:actividadId', auth, getArchivosPorActividad);
 
-// Múltiples archivos, hasta 10
+// ✅ Subir múltiples archivos
 router.post('/:actividadId', auth, uploadMiddleware.array('files', 10), uploadMultiple);
 
-// Descarga
+// ✅ Descargar archivo
 router.get('/download/:filename', auth, download);
 
 export { router };
