@@ -6,12 +6,12 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ✅ Subida múltiple
+// ✅ Subida múltiple con req.user.id
 export async function uploadMultiple(req, res) {
   try {
     const { actividadId } = req.params;
     const { tipoAdjunto, descripcion } = req.body;
-    const usuarioId = req.userId; // desde middleware auth
+    const usuarioId = req.user.id; // Cambiado aquí para usar user.id
     const files = req.files;
 
     if (!files || files.length === 0) {
