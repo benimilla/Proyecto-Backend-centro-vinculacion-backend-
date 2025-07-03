@@ -47,7 +47,7 @@ export async function create(req, res) {
         socioComunitarioId,
         proyectoId: proyectoId || null,
         cupo: cupo ?? undefined,
-        creadoPorId: req.user.id,
+        creadoPorId: req.user.userId,  // <-- aquí se cambió
         estado: 'Programada',
       },
     });
@@ -69,7 +69,7 @@ export async function update(req, res) {
     const actividad = await prisma.actividad.findUnique({ where: { id: Number(id) } });
     if (!actividad) return res.status(404).json({ error: 'Actividad no encontrada' });
 
-    if (!req.user || actividad.creadoPorId !== req.user.userId) {
+    if (!req.user || actividad.creadoPorId !== req.user.userId) { // <-- cambio aquí también
       return res.status(403).json({ error: 'No tiene permisos para modificar esta actividad' });
     }
 
