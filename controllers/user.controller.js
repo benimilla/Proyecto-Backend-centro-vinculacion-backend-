@@ -4,9 +4,25 @@ import { prisma } from '../config/db.js';
 export async function getAll(req, res) {
   try {
     const usuarios = await prisma.usuario.findMany({
-      select: { id: true, nombre: true, email: true }
+      select: {
+        id: true,
+        nombre: true,
+        email: true,
+        permisos: {
+          select: {
+            permiso: true,
+          },
+        },
+      },
     });
-    res.json(usuarios);
+
+    // Opcional: transformar a lista de strings
+    const transformados = usuarios.map((u) => ({
+      ...u,
+      permisos: u.permisos.map((p) => p.permiso),
+    }));
+
+    res.json(transformados);
   } catch (error) {
     console.error('Error al obtener usuarios:', error);
     res.status(500).json({ error: 'Error al obtener usuarios' });
@@ -16,9 +32,23 @@ export async function getAll(req, res) {
 export async function getById(req, res) {
   try {
     const { id } = req.params;
-    const usuario = await prisma.usuario.findUnique({ where: { id: Number(id) } });
+    const usuario = await prisma.usuario.findUnique({
+      where: { id: Number(id) },
+      include: {
+        permisos: {
+          select: { permiso: true },
+        },
+      },
+    });
+
     if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
-    res.json(usuario);
+
+    const resultado = {
+      ...usuario,
+      permisos: usuario.permisos.map((p) => p.permiso),
+    };
+
+    res.json(resultado);
   } catch (error) {
     console.error('Error al obtener usuario:', error);
     res.status(500).json({ error: 'Error al obtener usuario' });
@@ -33,25 +63,21 @@ export async function create(req, res) {
       return res.status(400).json({ error: 'Nombre, email y password son obligatorios' });
     }
 
-    // Validar email único
     const existente = await prisma.usuario.findUnique({ where: { email } });
     if (existente) {
-      return res.status(400).json({ error: 'El email ya está registrado' });
+      return res.status(400).json({ error: 'El email ya estÃ¡ registrado' });
     }
 
-    // Hashear contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Crear el usuario
     const usuario = await prisma.usuario.create({
       data: {
         nombre,
         email,
         password: hashedPassword,
-      }
+      },
     });
 
-    // Asignar permisos por defecto al nuevo usuario
     const permisosIniciales = ['ver_actividades', 'crear_actividad', 'crear_cita'];
 
     await Promise.all(
@@ -60,7 +86,7 @@ export async function create(req, res) {
           data: {
             usuarioId: usuario.id,
             permiso,
-            asignadoPorId: null, // puedes poner aquí el id del admin si lo tienes
+            asignadoPorId: null,
           },
         })
       )
@@ -82,12 +108,28 @@ export async function update(req, res) {
       data.password = await bcrypt.hash(data.password, 10);
     }
 
-    const usuario = await prisma.usuario.update({
+    const { permisos, ...restoData } = data;
+
+    const usuarioActualizado = await prisma.usuario.update({
       where: { id: Number(id) },
-      data
+      data: restoData,
     });
 
-    res.json(usuario);
+    if (Array.isArray(permisos)) {
+      await prisma.permisoUsuario.deleteMany({
+        where: { usuarioId: usuarioActualizado.id },
+      });
+
+      const nuevos = permisos.map((permiso) => ({
+        permiso,
+        usuarioId: usuarioActualizado.id,
+        asignadoPorId: null,
+      }));
+
+      await prisma.permisoUsuario.createMany({ data: nuevos });
+    }
+
+    res.json({ mensaje: 'Usuario actualizado correctamente' });
   } catch (error) {
     console.error('Error al actualizar usuario:', error);
     res.status(500).json({ error: 'Error al actualizar usuario', detalle: error.message });
